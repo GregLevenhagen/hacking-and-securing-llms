@@ -75,6 +75,5 @@ scripts/ralph/*.bak
 
 # ── Misc ──────────────────────────────────────
 *.log
-*.pptx
 tmp/
 .cache/
