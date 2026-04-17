@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block header_title %}[ HACKING LLMs // DEMO HUB ]{% endblock %}
+{% block header_center %}
+<div id="ollama-status" class="flex items-center gap-2 text-xs tracking-wider transition-opacity duration-500" style="opacity:0;">
+    <span id="ollama-dot" class="w-2 h-2 rounded-full bg-gray-600"></span>
+    <span id="ollama-status-text" class="text-green-500/40">checking ollama...</span>
+</div>
+{% endblock %}
+{% block header_right %}
+<a href="/" class="pj-green-secondary hover:text-terminal-green transition-colors text-xs tracking-widest">
+    &lt; BACK TO HUB
+</a>
+{% endblock %}
+
+{% block head %}
+<!--
+    ZERO-FLICKER SIDEBAR SCROLL RESTORATION
+    ========================================
+    Problem: scrollTop cannot be set before the element exists. DOMContentLoaded fires
+    after the browser has already painted the first frame at scroll=0, causing a visible
+    jump. visibility:hidden trades scroll-flicker for a blank-sidebar flash — still bad.
+
+    Solution — negative margin-top as a pre-paint scroll proxy:
+    ─────────────────────────────────────────────────────────────
+    A blocking <script> in <head> runs before any HTML is parsed below it and before
+    any pixel is painted. It cannot touch elements that don't exist yet, but it CAN
+    inject a <style> block. The trick:
+
+      1. Read saved scroll from sessionStorage synchronously in the blocking script.
+      2. Inject a CSS rule: #sidebar-inner { margin-top: -Npx }
+         This shifts the inner content upward by exactly the scroll amount. Since the
+         sidebar has overflow:hidden (clip), content above the viewport is invisible.
+         The net visual effect is identical to the sidebar being scrolled to position N.
+         This CSS is applied before the first paint — zero flicker.
+      3. On DOMContentLoaded, in one synchronous task:
+         a. Set sidebar.scrollTop = N  (the real scroll)
+         b. Remove the fake margin-top  (sidebar-inner.style.marginTop = '')
+         Both mutations happen in the same task, so the browser batches them into a
+         single paint. No intermediate state is ever visible.
+
+    Why not visibility:hidden?
+      It still lets the browser paint a blank sidebar space. The user sees a layout
+      shift as content appears. The margin trick never shows any incorrect state.
+
+    Why not scrollRestoration API?
+      history.scrollRestoration only applies to window.scrollY, not overflow:auto
+      elements. Irrelevant here.
+
+    Why not requestAnimationFrame for restoration?
+      rAF fires AFTER a paint frame is committed — strictly later than DOMContentLoaded.
+      It would make the flicker worse, not better.
+
+    Save strategy — click interception beats beforeunload:
+      beforeunload is unreliable on mobile and fires at the wrong moment on fast
+      navigations. We capture scrollTop on the click event itself (synchronously,
+      before navigation starts). beforeunload is kept as a fallback for keyboard
+      navigation and programmatic location.href changes.
+-->
+<script>
+(function(){
+    // ── 1. Pre-paint: sidebar collapsed state ──────────────────────────────────
+    if(localStorage.getItem('hub-sidebar-collapsed')==='true'){
+        document.documentElement.setAttribute('data-sidebar','collapsed');
+    }
+
+    // ── 2. Pre-paint: section collapsed state ─────────────────────────────────
+    var sectionRules = '';
+    ['attacks','defenses','advanced','azure'].forEach(function(s){
+        if(localStorage.getItem('hub-section-'+s)==='collapsed'){
+            sectionRules += '.demo-section[data-section="'+s+'"] > ul{ display:none !important; }\n';
+        }
+    });
+
+    // ── 3. Pre-paint: fake scroll via negative margin-top ─────────────────────
+    // Read the scroll value saved at click time (or beforeunload fallback).
+    // If present and non-zero, we manufacture the appearance of a scrolled sidebar
+    // by pushing #sidebar-inner up by that many pixels. The sidebar's overflow clip
+    // makes content above the visible area invisible — exactly matching scrollTop=N.
+    var rawScroll = sessionStorage.getItem('hub-sidebar-scroll');
+    var savedScroll = rawScroll !== null ? parseInt(rawScroll, 10) : 0;
+    if(isNaN(savedScroll)) savedScroll = 0;
+
+    var scrollRules = '';
+    if(savedScroll > 0){
+        // Shift inner content upward to fake the scroll position.
+        // overflow-anchor:none prevents scroll-anchoring from interfering when
+        // we later assign the real scrollTop and remove this margin.
+        scrollRules  = '#sidebar-inner{ margin-top:-'+savedScroll+'px !important; }\n';
+        scrollRules += '#hub-sidebar{ overflow-anchor:none; overflow-y:auto; }\n';
+    }
+
+    // Inject all pre-paint rules in a single <style> block — one DOM write.
+    var combined = sectionRules + scrollRules;
+    if(combined){
+        var st = document.createElement('style');
+        st.id = 'sidebar-preload';
+        st.textContent = combined;
+        document.head.appendChild(st);
+    }
+
+    // ── 4. Restore real scrollTop (shared logic) ──────────────────────────────
+    function restoreScroll(){
+        var sb  = document.getElementById('hub-sidebar');
+        var inn = document.getElementById('sidebar-inner');
+        if(sb && inn && savedScroll > 0){
+            sb.scrollTop      = savedScroll;
+            inn.style.marginTop = '';
+        }
+        var preload = document.getElementById('sidebar-preload');
+        if(preload) preload.remove();
+    }
+
+    // DOMContentLoaded: primary swap — fires after DOM parsed, before first paint frame.
+    document.addEventListener('DOMContentLoaded', restoreScroll);
+
+    // pagereveal: fires right before View Transitions captures the new page.
+    // Re-applies scroll in case the view transition lifecycle reset it.
+    if('onpagereveal' in window){
+        document.addEventListener('pagereveal', restoreScroll);
+    }
+})();
+</script>
+
+<style>
+    /* Pre-paint sidebar collapse — no transitions, prevents FOUC */
+    html[data-sidebar="collapsed"] #hub-sidebar {
+        width: 52px !important; min-width: 52px !important;
+        transition: none !important;
+    }
+    html[data-sidebar="collapsed"] #sidebar-inner { padding: 8px 4px !important; }
+    html[data-sidebar="collapsed"] #sidebar-label { display: none !important; }
+    html[data-sidebar="collapsed"] #sidebar-chevron { transform: rotate(180deg) !important; }
+    html[data-sidebar="collapsed"] #telemetry-wrapper { display: none !important; }
+    html[data-sidebar="collapsed"] .sec-text,
+    html[data-sidebar="collapsed"] .sec-chevron { display: none !important; }
+    html[data-sidebar="collapsed"] .demo-section summary {
+        justify-content: center !important; margin-bottom: 2px !important;
+        padding: 2px 0 !important; pointer-events: none !important;
+    }
+    html[data-sidebar="collapsed"] .demo-section { margin-bottom: 8px !important; }
+    html[data-sidebar="collapsed"] .demo-link {
+        justify-content: center !important; padding: 4px 2px !important; gap: 0 !important;
+    }
+    html[data-sidebar="collapsed"] .demo-name { display: none !important; }
+    html[data-sidebar="collapsed"] .demo-id {
+        opacity: 0.9 !important; width: auto !important;
+        font-size: 11px !important; font-weight: bold !important;
+    }
+
+    /* Loading indicator */
+    .hub-loading { display: inline-flex; gap: 4px; align-items: center; }
+    .hub-loading .dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #00ff00; animation: hubPulse 1.2s ease-in-out infinite;
+    }
+    .hub-loading .dot:nth-child(2) { animation-delay: 0.15s; }
+    .hub-loading .dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes hubPulse {
+        0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+        40% { opacity: 1; transform: scale(1.2); }
+    }
+
+    /* Toast notification */
+    .hub-toast {
+        position: fixed; bottom: 60px; right: 20px; z-index: 100;
+        padding: 8px 16px; border-radius: 4px; font-size: 12px;
+        font-family: monospace; animation: toastIn 0.3s ease-out;
+    }
+    .hub-toast.success { background: rgba(0,255,0,0.15); border: 1px solid rgba(0,255,0,0.3); color: #00ff00; }
+    .hub-toast.error { background: rgba(255,0,64,0.15); border: 1px solid rgba(255,0,64,0.3); color: #ff0040; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Active demo highlight pulse */
+    a[aria-current="page"] {
+        animation: activeGlow 2s ease-in-out infinite;
+    }
+    @keyframes activeGlow {
+        0%, 100% { box-shadow: 0 0 8px rgba(0,255,0,0.1); }
+        50% { box-shadow: 0 0 16px rgba(0,255,0,0.25); }
+    }
+
+    /* Section collapse — native <details>/<summary> */
+    .demo-section { border: none; }
+    .demo-section summary {
+        list-style: none;
+        cursor: pointer;
+        user-select: none;
+    }
+    .demo-section summary::-webkit-details-marker { display: none; }
+    .demo-section summary::marker { display: none; content: ""; }
+    .demo-section summary .sec-chevron {
+        transition: transform 0.2s ease;
+        font-size: 8px;
+        opacity: 0.5;
+        display: inline-block;
+    }
+    .demo-section summary:hover .sec-chevron { opacity: 1; }
+    .demo-section[open] summary .sec-chevron { transform: rotate(0deg); }
+    .demo-section:not([open]) summary .sec-chevron { transform: rotate(-90deg); }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex h-full">
+    <!-- Sidebar Navigation -->
+    <nav id="hub-sidebar" class="w-[260px] shrink-0 border-r border-green-500/30 bg-[#0a0a0a]/80 overflow-y-auto scrollbar-thin"
+         role="navigation" aria-label="Demo navigation">
+        <div class="p-4" id="sidebar-inner">
+            <!-- Collapse toggle -->
+            <button id="sidebar-toggle" type="button" onclick="window.toggleHubSidebar()"
+                    class="w-full flex items-center justify-between mb-3 px-2 py-1 text-xs pj-green-label hover:text-terminal-green transition-colors rounded hover:bg-green-500/5"
+                    aria-label="Toggle sidebar" title="Toggle sidebar (Esc)">
+                <span id="sidebar-label" class="tracking-widest">DEMOS</span>
+                <span id="sidebar-chevron" class="transition-transform duration-200">◀</span>
+            </button>
+
+            <!-- ATTACKS Section -->
+            <details class="mb-6 demo-section" data-section="attacks" open>
+                <summary class="text-terminal-amber text-xs font-bold tracking-[0.2em] mb-3 uppercase flex items-center gap-2">
+                    <span class="status-dot warning"></span>
+                    <span class="sec-text">ATTACKS</span>
+                    <span class="sec-chevron ml-auto">▼</span>
+                </summary>
+                <ul class="space-y-1">
+                    {% for demo in attacks %}
+                    <li>
+                        <a href="{{ demo.url_prefix }}"
+                           class="demo-link group flex items-center gap-3 px-3 py-2 rounded text-sm transition-all duration-200
+                                  {% if current_demo and current_demo.id == demo.id %}
+                                  bg-terminal-amber/10 border border-terminal-amber/40 text-terminal-amber shadow-[0_0_10px_rgba(255,176,0,0.15)]
+                                  {% else %}
+                                  pj-amber-body hover:text-terminal-amber hover:bg-terminal-amber/5 border border-transparent hover:border-terminal-amber/20
+                                  {% endif %}"
+                           {% if current_demo and current_demo.id == demo.id %}aria-current="page"{% endif %}
+                           title="{{ demo.short }}">
+                            <span class="demo-id text-xs opacity-50 w-5">{{ demo.id }}</span>
+                            <span class="demo-name truncate">{{ demo.short }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+
+            <!-- DEFENSES Section -->
+            <details class="mb-6 demo-section" data-section="defenses" open>
+                <summary class="text-neon-cyan text-xs font-bold tracking-[0.2em] mb-3 uppercase flex items-center gap-2">
+                    <span class="status-dot" style="background-color: var(--color-neon-cyan); box-shadow: 0 0 6px var(--color-neon-cyan);"></span>
+                    <span class="sec-text">DEFENSES</span>
+                    <span class="sec-chevron ml-auto">▼</span>
+                </summary>
+                <ul class="space-y-1">
+                    {% for demo in defenses %}
+                    <li>
+                        <a href="{{ demo.url_prefix }}"
+                           class="demo-link group flex items-center gap-3 px-3 py-2 rounded text-sm transition-all duration-200
+                                  {% if current_demo and current_demo.id == demo.id %}
+                                  bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan shadow-[0_0_10px_rgba(0,255,240,0.15)]
+                                  {% else %}
+                                  pj-cyan-body hover:text-neon-cyan hover:bg-neon-cyan/5 border border-transparent hover:border-neon-cyan/20
+                                  {% endif %}"
+                           {% if current_demo and current_demo.id == demo.id %}aria-current="page"{% endif %}
+                           title="{{ demo.short }}">
+                            <span class="demo-id text-xs opacity-50 w-5">{{ demo.id }}</span>
+                            <span class="demo-name truncate">{{ demo.short }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+
+            <!-- ADVANCED Section -->
+            <details class="mb-6 demo-section" data-section="advanced" open>
+                <summary class="text-neon-red text-xs font-bold tracking-[0.2em] mb-3 uppercase flex items-center gap-2">
+                    <span class="status-dot danger"></span>
+                    <span class="sec-text">ADVANCED</span>
+                    <span class="sec-chevron ml-auto">▼</span>
+                </summary>
+                <ul class="space-y-1">
+                    {% for demo in advanced %}
+                    <li>
+                        <a href="{{ demo.url_prefix }}"
+                           class="demo-link group flex items-center gap-3 px-3 py-2 rounded text-sm transition-all duration-200
+                                  {% if current_demo and current_demo.id == demo.id %}
+                                  bg-neon-red/10 border border-neon-red/40 text-neon-red shadow-[0_0_10px_rgba(255,0,64,0.15)]
+                                  {% else %}
+                                  pj-red-body hover:text-neon-red hover:bg-neon-red/5 border border-transparent hover:border-neon-red/20
+                                  {% endif %}"
+                           {% if current_demo and current_demo.id == demo.id %}aria-current="page"{% endif %}
+                           title="{{ demo.short }}">
+                            <span class="demo-id text-xs opacity-50 w-5">{{ demo.id }}</span>
+                            <span class="demo-name truncate">{{ demo.short }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+
+            <!-- AZURE FOUNDRY DEFENSES Section -->
+            <details class="demo-section" data-section="azure" open>
+                <summary class="text-[#0078d4] text-xs font-bold tracking-[0.2em] mb-3 uppercase flex items-center gap-2">
+                    <span class="status-dot" style="background-color: #0078d4; box-shadow: 0 0 6px #0078d4;"></span>
+                    <span class="sec-text">AZURE FOUNDRY DEFENSES</span>
+                    <span class="sec-chevron ml-auto">▼</span>
+                </summary>
+                <ul class="space-y-1">
+                    {% for demo in azure %}
+                    <li>
+                        <a href="{{ demo.url_prefix }}"
+                           class="demo-link group flex items-center gap-3 px-3 py-2 rounded text-sm transition-all duration-200
+                                  {% if current_demo and current_demo.id == demo.id %}
+                                  bg-[#0078d4]/10 border border-[#0078d4]/40 text-[#0078d4] shadow-[0_0_10px_rgba(0,120,212,0.15)]
+                                  {% else %}
+                                  text-[#0078d4]/50 hover:text-[#0078d4] hover:bg-[#0078d4]/5 border border-transparent hover:border-[#0078d4]/20
+                                  {% endif %}"
+                           {% if current_demo and current_demo.id == demo.id %}aria-current="page"{% endif %}
+                           title="{{ demo.short }}">
+                            <span class="demo-id text-xs opacity-50 w-5">{{ demo.id }}</span>
+                            <span class="demo-name truncate">{{ demo.short }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+
+            <!-- Telemetry Panel (hidden when sidebar collapsed) -->
+            <div class="mt-6" id="telemetry-wrapper">
+                {% include "_telemetry_panel.html" %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Demo Content Area -->
+    <div class="flex-1 overflow-y-auto scrollbar-thin">
+        {% block demo_content %}{% endblock %}
+    </div>
+</div>
+
+<!-- Source Intelligence Drawer -->
+{% include "_source_drawer.html" %}
+{% endblock %}
+
+{% block footer %}
+<span>&gt; {{ current_demo.name if current_demo else 'SELECT A DEMO' }} // DEMO HUB</span>
+<span class="float-right">
+    <span class="pj-green-muted text-xs mr-4" title="1-9,0 = demos, ←→ = prev/next, Esc = sidebar, I = source data">⌨ keys: 1-0, ←→, Esc, I=source</span>
+    LOCAL LLM // OLLAMA
+</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    // ── Elements ──
+    var sidebar = document.getElementById('hub-sidebar');
+    var sidebarLabel = document.getElementById('sidebar-label');
+    var sidebarChevron = document.getElementById('sidebar-chevron');
+    var telemetryWrapper = document.getElementById('telemetry-wrapper');
+    var sidebarInner = document.getElementById('sidebar-inner');
+    var SIDEBAR_KEY = 'hub-sidebar-collapsed';
+    var SECTION_KEY_PREFIX = 'hub-section-';
+    var SCROLL_KEY = 'hub-sidebar-scroll';
+    var sidebarCollapsed = false;
+
+    // ── Save scroll on click — PRIMARY save strategy ───────────────────────────
+    // Capture scrollTop at the moment the user clicks a navigation link, before
+    // the browser has started navigation. This is more reliable than beforeunload:
+    //   - beforeunload fires after navigation is committed, which on fast machines
+    //     or mobile may race with the new page's first paint
+    //   - click fires synchronously in the current page's context with plenty of
+    //     time before the network request even begins
+    // We use event delegation on document so new links added dynamically are covered.
+    document.addEventListener('click', function(e) {
+        var link = e.target.closest('a[href]');
+        // Only save for same-origin navigations (not # anchors, not external links)
+        if(link && link.href && !link.href.startsWith('javascript:') &&
+           !link.hash && link.origin === location.origin && sidebar){
+            sessionStorage.setItem(SCROLL_KEY, sidebar.scrollTop);
+        }
+    }, true); // capture phase: runs before any stopPropagation in children
+
+    // ── Save scroll on beforeunload — FALLBACK for keyboard/programmatic nav ──
+    // Covers ArrowKey navigation, window.location.href = '...', form submissions.
+    window.addEventListener('beforeunload', function() {
+        if(sidebar) sessionStorage.setItem(SCROLL_KEY, sidebar.scrollTop);
+    });
+
+    // ── Sidebar collapse/expand via direct style manipulation ─────────────────
+    function setSidebarCollapsed(collapsed) {
+        sidebarCollapsed = collapsed;
+        if (collapsed) {
+            sidebar.style.width = '52px';
+            sidebar.style.minWidth = '52px';
+            if (sidebarInner) sidebarInner.style.padding = '8px 4px';
+            if (sidebarLabel) sidebarLabel.style.display = 'none';
+            if (sidebarChevron) sidebarChevron.style.transform = 'rotate(180deg)';
+            if (telemetryWrapper) telemetryWrapper.style.display = 'none';
+
+            // In collapsed mode: hide section text/chevrons, show only dots + compact number links
+            document.querySelectorAll('.demo-section').forEach(function(det) {
+                // Force all sections open so numbers are visible
+                det.setAttribute('open', '');
+                det.style.marginBottom = '8px';
+                // Hide text label and chevron in summary
+                var secText = det.querySelector('.sec-text');
+                var secChevron = det.querySelector('.sec-chevron');
+                if (secText) secText.style.display = 'none';
+                if (secChevron) secChevron.style.display = 'none';
+                // Summary: center the dot
+                var summary = det.querySelector('summary');
+                if (summary) {
+                    summary.style.justifyContent = 'center';
+                    summary.style.marginBottom = '2px';
+                    summary.style.padding = '2px 0';
+                    summary.style.pointerEvents = 'none'; // disable section toggle when collapsed
+                }
+            });
+            // Compact demo links: show only number
+            document.querySelectorAll('.demo-link').forEach(function(link) {
+                link.style.justifyContent = 'center';
+                link.style.padding = '4px 2px';
+                link.style.gap = '0';
+            });
+            document.querySelectorAll('.demo-name').forEach(function(el) {
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('.demo-id').forEach(function(el) {
+                el.style.opacity = '0.9';
+                el.style.width = 'auto';
+                el.style.fontSize = '11px';
+                el.style.fontWeight = 'bold';
+            });
+        } else {
+            sidebar.style.width = '';
+            sidebar.style.minWidth = '';
+            if (sidebarInner) sidebarInner.style.padding = '';
+            if (sidebarLabel) sidebarLabel.style.display = '';
+            if (sidebarChevron) sidebarChevron.style.transform = '';
+            if (telemetryWrapper) telemetryWrapper.style.display = '';
+
+            // Restore section headers
+            document.querySelectorAll('.demo-section').forEach(function(det) {
+                det.style.marginBottom = '';
+                var secText = det.querySelector('.sec-text');
+                var secChevron = det.querySelector('.sec-chevron');
+                if (secText) secText.style.display = '';
+                if (secChevron) secChevron.style.display = '';
+                var summary = det.querySelector('summary');
+                if (summary) {
+                    summary.style.justifyContent = '';
+                    summary.style.marginBottom = '';
+                    summary.style.padding = '';
+                    summary.style.pointerEvents = '';
+                }
+                // Restore section open/closed state from localStorage
+                var sectionKey = det.dataset.section;
+                if (localStorage.getItem(SECTION_KEY_PREFIX + sectionKey) === 'collapsed') {
+                    det.removeAttribute('open');
+                } else {
+                    det.setAttribute('open', '');
+                }
+            });
+            // Restore demo links
+            document.querySelectorAll('.demo-link').forEach(function(link) {
+                link.style.justifyContent = '';
+                link.style.padding = '';
+                link.style.gap = '';
+            });
+            document.querySelectorAll('.demo-name').forEach(function(el) {
+                el.style.display = '';
+            });
+            document.querySelectorAll('.demo-id').forEach(function(el) {
+                el.style.opacity = '';
+                el.style.width = '';
+                el.style.fontSize = '';
+                el.style.fontWeight = '';
+            });
+        }
+        localStorage.setItem(SIDEBAR_KEY, collapsed ? 'true' : 'false');
+    }
+
+    // ── Section toggle persistence (uses native <details> open attribute) ──
+    document.querySelectorAll('.demo-section').forEach(function(det) {
+        var sectionKey = det.dataset.section;
+        // Restore saved state
+        if (localStorage.getItem(SECTION_KEY_PREFIX + sectionKey) === 'collapsed') {
+            det.removeAttribute('open');
+        }
+        // Save state on toggle
+        det.addEventListener('toggle', function() {
+            if (!sidebarCollapsed) {
+                localStorage.setItem(SECTION_KEY_PREFIX + sectionKey, det.open ? 'expanded' : 'collapsed');
+            }
+        });
+    });
+
+    // ── Expose sidebar toggle globally (called by inline onclick) ──
+    window.toggleHubSidebar = function() {
+        setSidebarCollapsed(!sidebarCollapsed);
+    };
+
+    // ── Restore sidebar collapsed state ──
+    if (localStorage.getItem(SIDEBAR_KEY) === 'true') {
+        setSidebarCollapsed(true);
+    }
+
+    // ── Enable width transitions after initial paint ───────────────────────────
+    // The pre-paint CSS on [data-sidebar] suppresses transitions to avoid FOUC.
+    // After the first paint we remove the attribute and re-enable transitions so
+    // interactive toggling is animated. We use rAF here intentionally — transitions
+    // should only activate after the browser has committed the no-transition paint.
+    requestAnimationFrame(function() {
+        document.documentElement.removeAttribute('data-sidebar');
+        sidebar.style.transition = 'width 0.3s ease, min-width 0.3s ease';
+    });
+
+    // ── Keyboard navigation ──
+    var DEMO_ORDER = ['01','02','03','04','05','06','07','08','09','10'];
+    var CURRENT = '{{ current_demo.id if current_demo else "" }}';
+    var currentIdx = DEMO_ORDER.indexOf(CURRENT);
+
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        var key = e.key;
+
+        if (key >= '1' && key <= '9') {
+            window.location.href = '/demo-0' + key + '/';
+            return;
+        }
+        if (key === '0') {
+            window.location.href = '/demo-10/';
+            return;
+        }
+
+        if (key === 'Escape') {
+            window.toggleHubSidebar();
+            return;
+        }
+
+        if (key === 'ArrowLeft' && currentIdx > 0) {
+            window.location.href = '/demo-' + DEMO_ORDER[currentIdx - 1] + '/';
+        } else if (key === 'ArrowRight' && currentIdx < DEMO_ORDER.length - 1) {
+            window.location.href = '/demo-' + DEMO_ORDER[currentIdx + 1] + '/';
+        }
+    });
+
+    // ── Toast notification system ──
+    window.showToast = function(message, type) {
+        var toast = document.createElement('div');
+        toast.className = 'hub-toast ' + (type || 'success');
+        toast.textContent = '> ' + message;
+        document.body.appendChild(toast);
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 2000);
+    };
+
+    // ── Ollama health check (inline in header) ──
+    var ollamaDot = document.getElementById('ollama-dot');
+    var ollamaText = document.getElementById('ollama-status-text');
+    var ollamaStatus = document.getElementById('ollama-status');
+
+    function checkOllama() {
+        if (!ollamaDot || !ollamaText || !ollamaStatus) return;
+        fetch('/api/health').then(function(r) { return r.json(); }).then(function(data) {
+            ollamaStatus.style.opacity = '1';
+            if (data.ok) {
+                ollamaDot.style.background = '#00ff00';
+                ollamaDot.style.boxShadow = '0 0 6px #00ff00';
+                ollamaText.textContent = 'ollama: connected';
+                ollamaText.style.color = 'rgba(0,255,0,0.5)';
+            } else {
+                ollamaDot.style.background = '#ff0040';
+                ollamaDot.style.boxShadow = '0 0 6px #ff0040';
+                ollamaText.textContent = 'ollama: unreachable';
+                ollamaText.style.color = '#ff0040';
+            }
+        }).catch(function() {
+            ollamaStatus.style.opacity = '1';
+            ollamaDot.style.background = '#ff0040';
+            ollamaDot.style.boxShadow = '0 0 6px #ff0040';
+            ollamaText.textContent = 'ollama: unreachable';
+            ollamaText.style.color = '#ff0040';
+        });
+    }
+    checkOllama();
+    setInterval(checkOllama, 30000);
+})();
+</script>
+{% endblock %}

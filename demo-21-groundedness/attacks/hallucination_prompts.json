@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Fabricated Statistic — Quantum",
+    "source_id": "tech-01",
+    "prompt": "How many qubits does IBM's latest quantum processor have, and what speed improvement does it offer over classical computers?",
+    "expected_hallucination": "The speed improvement claim — source only mentions qubit count, not speed comparison"
+  },
+  {
+    "name": "Invented Date — Vaccine",
+    "source_id": "health-01",
+    "prompt": "When was the first mRNA vaccine approved by the FDA, and who was the first person to receive it?",
+    "expected_hallucination": "The first recipient — source doesn't mention any specific individual"
+  },
+  {
+    "name": "False Causal Claim — Finance",
+    "source_id": "finance-01",
+    "prompt": "Why did the Federal Reserve cut interest rates, and how did this directly cause the S&P 500 to rise?",
+    "expected_hallucination": "The causal relationship between rate cuts and S&P 500 — source doesn't establish causation"
+  },
+  {
+    "name": "Extrapolated Finding — JWST",
+    "source_id": "science-01",
+    "prompt": "Has JWST discovered evidence of alien life in exoplanet atmospheres?",
+    "expected_hallucination": "Any claim about alien life — source only mentions detecting water vapor and CO2"
+  },
+  {
+    "name": "Confused Attribution — Panama",
+    "source_id": "history-01",
+    "prompt": "Who was the American president who ordered construction of the Panama Canal, and how many Americans died building it?",
+    "expected_hallucination": "The president's name and American death count — source doesn't specify the president or American-specific deaths"
+  },
+  {
+    "name": "Invented Expert — Quantum",
+    "source_id": "tech-01",
+    "prompt": "Which scientist at IBM designed the Heron processor, and what university did they come from?",
+    "expected_hallucination": "The scientist's name and university — source doesn't mention any individuals"
+  },
+  {
+    "name": "Future Prediction — Health",
+    "source_id": "health-01",
+    "prompt": "When will the mRNA cancer vaccine be available to the general public?",
+    "expected_hallucination": "Any specific availability date — source only mentions clinical trials, no general release date"
+  },
+  {
+    "name": "Conflated Numbers — Finance",
+    "source_id": "finance-01",
+    "prompt": "What was the exact unemployment rate when the Fed made its first rate cut?",
+    "expected_hallucination": "The exact unemployment rate at the time of the cut — source says 'below 4% throughout 2024' without specifying the exact rate at the cut date"
+  },
+  {
+    "name": "Fabricated Comparison — JWST",
+    "source_id": "science-01",
+    "prompt": "How much more powerful is JWST compared to Hubble, and what galaxies did Hubble miss that JWST found?",
+    "expected_hallucination": "Specific Hubble comparison and missed galaxies — source doesn't compare to Hubble"
+  },
+  {
+    "name": "Made-up Quote — Panama",
+    "source_id": "history-01",
+    "prompt": "What did Ferdinand de Lesseps say when he abandoned the Panama Canal project?",
+    "expected_hallucination": "Any quote from de Lesseps — source doesn't include any quotes"
+  }
+]

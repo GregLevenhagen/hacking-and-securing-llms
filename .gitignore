@@ -1,0 +1,80 @@
+# ── Python ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# ── Node ──────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.yarn/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ── Environment & secrets ─────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ── Claude Code (personal settings/memory) ───
+.claude/memory/
+.claude/settings.local.json
+.claude/projects/
+
+# ── IDE / OS ──────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Jupyter ───────────────────────────────────
+.ipynb_checkpoints/
+
+# ── ChromaDB (RAG demos) ─────────────────────
+.chroma/
+chroma_data/
+demo-hub/.chroma_demo*/
+
+# ── Ralph agent ──────────────────────────────
+scripts/ralph/progress.txt
+scripts/ralph/.last-branch
+scripts/ralph/.ralph.sh.swp
+scripts/ralph/archive/
+scripts/ralph/*.bak
+
+# ── Misc ──────────────────────────────────────
+*.log
+*.pptx
+tmp/
+.cache/

@@ -1,0 +1,302 @@
+{% extends "hub_base.html" %}
+
+{% block title %}MODEL DENIAL OF SERVICE // DEMO 11{% endblock %}
+
+{% block demo_content %}
+<div class="h-full flex flex-col">
+
+    <!-- Demo Header -->
+    <div class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="text-neon-red text-sm tracking-wider font-bold">
+            [ MODEL DENIAL OF SERVICE // DEMO 11 ]
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="pj-red-button text-xs tracking-wider">
+                RESOURCE EXHAUSTION ATTACKS
+            </div>
+            <button id="reset-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all"
+            >RESET</button>
+        </div>
+    </div>
+
+    <!-- Results panel -->
+    <div id="results" class="flex-1 overflow-y-auto px-6 py-4 space-y-2 scrollbar-thin">
+        <div class="pj-green-secondary text-xs mb-4">
+            &gt; MODEL DoS ATTACK SUITE INITIALIZED<br>
+            &gt; ATTACKS: Token Explosion, Infinite Loop, Recursive Reasoning, Context Overflow<br>
+            &gt; TARGET: <span class="text-neon-red">LOCAL LLM VIA OLLAMA</span><br>
+            &gt; SELECT AN ATTACK BELOW TO BEGIN...
+        </div>
+    </div>
+
+    <!-- Attack buttons and summary area -->
+    <div class="border-t border-green-500/30 px-6 py-4 shrink-0">
+        <!-- Summary stats bar -->
+        <div id="summary-bar" class="hidden mb-3 border border-green-500/20 rounded p-2 bg-green-500/5">
+            <div class="flex items-center justify-between text-xs">
+                <span class="pj-green-label tracking-wider">&gt; CUMULATIVE IMPACT:</span>
+                <span class="text-terminal-green">
+                    Attacks: <span id="stat-attacks" class="font-bold">0</span> |
+                    Tokens: <span id="stat-tokens" class="font-bold">0</span> |
+                    Iterations: <span id="stat-iterations" class="font-bold">0</span> |
+                    Time: <span id="stat-time" class="font-bold">0.000s</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Attack Scenario Buttons -->
+        <div>
+            <div class="pj-green-label text-xs mb-2 tracking-wider">&gt; DoS ATTACK SCENARIOS:</div>
+            <div class="flex flex-wrap gap-2">
+                {% for scenario in scenarios %}
+                <button class="attack-btn px-3 py-1.5 text-xs border rounded transition-all
+                    pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/50 hover:shadow-[0_0_10px_#ff004033]"
+                    data-attack="{{ scenario.name }}"
+                    title="{{ scenario.description }}"
+                >&gt; {{ scenario.name }}</button>
+                {% endfor %}
+                <button id="run-all-btn" class="px-3 py-1.5 text-xs border rounded transition-all
+                    border-terminal-amber/40 text-terminal-amber/80 hover:text-terminal-amber hover:border-terminal-amber/60 hover:shadow-[0_0_10px_rgba(255,176,0,0.2)]"
+                >&gt; RUN ALL ATTACKS</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; DoS SUITE: READY // DEMO 11</span>
+<span class="float-right">MODEL DENIAL OF SERVICE // DEMO HUB</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    var results = document.getElementById('results');
+    var resetBtn = document.getElementById('reset-btn');
+    var runAllBtn = document.getElementById('run-all-btn');
+    var summaryBar = document.getElementById('summary-bar');
+
+    var isRunning = false;
+    var API_BASE = '/demo-11';
+
+    // Cumulative stats
+    var stats = { attacks: 0, tokens: 0, iterations: 0, time: 0 };
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function scrollToBottom() {
+        results.scrollTop = results.scrollHeight;
+    }
+
+    function addLogEntry(html) {
+        var el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        results.appendChild(el);
+        scrollToBottom();
+    }
+
+    function updateStats() {
+        summaryBar.classList.remove('hidden');
+        document.getElementById('stat-attacks').textContent = stats.attacks;
+        document.getElementById('stat-tokens').textContent = stats.tokens.toLocaleString();
+        document.getElementById('stat-iterations').textContent = stats.iterations;
+        document.getElementById('stat-time').textContent = stats.time.toFixed(3) + 's';
+    }
+
+    function setRunning(running) {
+        isRunning = running;
+        var btns = document.querySelectorAll('.attack-btn');
+        btns.forEach(function(btn) { btn.disabled = running; });
+        runAllBtn.disabled = running;
+    }
+
+    function runAttack(attackName, callback) {
+        setRunning(true);
+
+        addLogEntry(
+            '<div class="border border-neon-red/20 rounded p-2 bg-neon-red/5 mt-2">' +
+            '<div class="flex items-center gap-2">' +
+            '<span class="text-neon-red font-bold text-xs">[ATTACK]</span>' +
+            '<span class="text-terminal-green font-bold">&gt; LAUNCHING: ' + escapeHtml(attackName) + '</span>' +
+            '<span class="hub-loading ml-2"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>' +
+            '</div></div>'
+        );
+
+        fetch(API_BASE + '/api/attack', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ attack_name: attackName }),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) {
+                        setRunning(false);
+                        if (callback) callback();
+                        return;
+                    }
+
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    var eventType = '';
+                    var eventData = '';
+
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) {
+                            eventType = line.slice(7).trim();
+                        } else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                handleEvent(eventType, eventData);
+                                eventType = '';
+                                eventData = '';
+                            }
+                        }
+                    }
+
+                    processChunk();
+                });
+            }
+
+            processChunk();
+        }).catch(function(err) {
+            addLogEntry('<div class="text-neon-red">[CONNECTION ERROR] ' + escapeHtml(err.message) + '</div>');
+            setRunning(false);
+            if (callback) callback();
+        });
+    }
+
+    function handleEvent(type, dataStr) {
+        var data;
+        try {
+            data = JSON.parse(dataStr);
+        } catch(e) {
+            return;
+        }
+
+        switch (type) {
+            case 'attack_start':
+                addLogEntry(
+                    '<div class="pj-green-label text-xs">' +
+                    '&gt; EXECUTING ' + escapeHtml(data.attack_name) + '...</div>'
+                );
+                break;
+
+            case 'attack_result':
+                // Update cumulative stats
+                stats.attacks++;
+                stats.tokens += (data.token_count || 0);
+                stats.iterations += (data.iterations || 0);
+                stats.time += (data.elapsed_seconds || 0);
+                updateStats();
+
+                var statusClass = data.status === 'completed' ? 'text-terminal-green' :
+                    data.status === 'max_iterations_reached' ? 'text-neon-red' : 'text-terminal-amber';
+                var statusLabel = data.status === 'max_iterations_reached' ? 'DoS CONFIRMED (loop limit)' : data.status;
+
+                addLogEntry(
+                    '<div class="border border-green-500/20 rounded p-3 bg-green-500/5 mt-2">' +
+                    '<div class="pj-green-secondary text-xs mb-2">&lt; ATTACK RESULT: ' + escapeHtml(data.attack_name) + '</div>' +
+                    '<div class="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">' +
+                    '<div class="text-terminal-green">Status:</div><div class="' + statusClass + ' font-bold">' + escapeHtml(statusLabel) + '</div>' +
+                    '<div class="text-terminal-green">Tokens consumed:</div><div class="text-terminal-amber font-bold">' + (data.token_count || 0).toLocaleString() + '</div>' +
+                    '<div class="text-terminal-green">Iterations:</div><div class="text-terminal-amber font-bold">' + (data.iterations || 0) + '</div>' +
+                    '<div class="text-terminal-green">Elapsed time:</div><div class="text-terminal-amber font-bold">' + (data.elapsed_seconds || 0).toFixed(3) + 's</div>' +
+                    '</div>' +
+                    (data.prompt ? '<div class="mt-2 text-xs pj-green-secondary border-t border-green-500/10 pt-2">Prompt: ' + escapeHtml(data.prompt.substring(0, 200)) + (data.prompt.length > 200 ? '...' : '') + '</div>' : '') +
+                    '</div>'
+                );
+                break;
+
+            case 'error':
+                addLogEntry(
+                    '<div class="text-neon-red font-bold">[ERROR] ' + escapeHtml(data.message) + '</div>'
+                );
+                break;
+
+            case 'done':
+                addLogEntry(
+                    '<div class="pj-green-label text-xs mt-2">' +
+                    '&gt; ATTACK COMPLETE — READY FOR NEXT...</div>'
+                );
+                setRunning(false);
+                break;
+        }
+    }
+
+    // Individual attack buttons
+    document.querySelectorAll('.attack-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var attackName = btn.getAttribute('data-attack');
+            if (attackName && !isRunning) {
+                runAttack(attackName);
+            }
+        });
+    });
+
+    // Run All button — sequential execution
+    runAllBtn.addEventListener('click', function() {
+        if (isRunning) return;
+        var attacks = [];
+        document.querySelectorAll('.attack-btn').forEach(function(btn) {
+            attacks.push(btn.getAttribute('data-attack'));
+        });
+
+        addLogEntry(
+            '<div class="border border-terminal-amber/30 rounded p-2 bg-terminal-amber/5 mt-2">' +
+            '<div class="text-terminal-amber font-bold text-xs">&gt; RUNNING ALL ' + attacks.length + ' ATTACKS SEQUENTIALLY...</div>' +
+            '</div>'
+        );
+
+        var idx = 0;
+        function runNext() {
+            if (idx >= attacks.length) {
+                addLogEntry(
+                    '<div class="border border-neon-red/30 rounded p-2 bg-neon-red/5 mt-2">' +
+                    '<div class="text-neon-red font-bold text-xs">&gt; ALL ATTACKS COMPLETE — TOTAL IMPACT: ' +
+                    stats.tokens.toLocaleString() + ' tokens, ' + stats.iterations + ' iterations, ' + stats.time.toFixed(3) + 's</div>' +
+                    '</div>'
+                );
+                return;
+            }
+            runAttack(attacks[idx], function() {
+                idx++;
+                runNext();
+            });
+        }
+        runNext();
+    });
+
+    // Reset button
+    resetBtn.addEventListener('click', function() {
+        fetch(API_BASE + '/api/reset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+        }).then(function() {
+            results.innerHTML =
+                '<div class="pj-green-secondary text-xs mb-4">' +
+                '&gt; STATE RESET — DoS SUITE RE-INITIALIZED<br>' +
+                '&gt; SELECT AN ATTACK BELOW TO BEGIN...</div>';
+            stats = { attacks: 0, tokens: 0, iterations: 0, time: 0 };
+            summaryBar.classList.add('hidden');
+            setRunning(false);
+            if (window.showToast) window.showToast('State reset', 'success');
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+AcmeTech Corporation — Refund and Return Policy
+================================================
+
+Effective Date: January 1, 2024
+Last Updated: March 15, 2024
+
+1. OVERVIEW
+-----------
+AcmeTech Corporation ("AcmeTech") is committed to customer satisfaction. This policy
+outlines the procedures and conditions for product refunds and returns for all AcmeTech
+hardware and software products purchased directly from AcmeTech or authorized resellers.
+
+2. STANDARD RETURN WINDOW
+--------------------------
+All products may be returned within 30 calendar days of the original purchase date.
+Returns requested after 30 days but within 90 days may be eligible for store credit
+at the discretion of customer service management.
+
+3. REFUND CONDITIONS
+---------------------
+To qualify for a full refund, the following conditions must be met:
+- Product must be in original packaging with all accessories included
+- Product must not show signs of physical damage or misuse
+- Proof of purchase (receipt or order confirmation) is required
+- Software products must not have been activated or registered
+
+4. REFUND PROCESSING
+---------------------
+Refunds are processed within 5-7 business days of receiving the returned item.
+Refunds are issued to the original payment method:
+- Credit card refunds: 5-7 business days after processing
+- Bank transfer refunds: 7-10 business days after processing
+- Store credit: Issued immediately upon processing
+
+5. NON-REFUNDABLE ITEMS
+-------------------------
+The following items are NOT eligible for refund:
+- Custom-configured hardware (built-to-order systems)
+- Downloaded software after activation
+- Gift cards and promotional credits
+- Items purchased during clearance sales (marked "Final Sale")
+- Subscription services after the first billing cycle
+
+6. DEFECTIVE PRODUCTS
+----------------------
+Products found to be defective within the warranty period (1 year for hardware,
+90 days for software) will be replaced or repaired at no charge. Customers may
+contact support@acmetech.example.com or call 1-800-ACME-TECH for warranty claims.
+
+7. ESCALATION PROCEDURE
+-------------------------
+If a customer is dissatisfied with a refund decision, they may escalate through:
+- Level 1: Customer Service Representative
+- Level 2: Customer Service Manager
+- Level 3: Regional Director of Customer Experience
+All escalations must be initiated within 14 days of the original refund decision.

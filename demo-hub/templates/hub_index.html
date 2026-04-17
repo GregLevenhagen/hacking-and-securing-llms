@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}HACKING LLMs // DEMO HUB{% endblock %}
+{% block header_title %}[ HACKING &amp; SECURING LLMs ]{% endblock %}
+{% block header_right %}DEMO HUB v1.0{% endblock %}
+
+{% block content %}
+<div class="h-full overflow-y-auto scrollbar-thin">
+    <div class="max-w-6xl mx-auto px-8 py-10">
+
+        <!-- ASCII Banner -->
+        <div class="text-center mb-10">
+            <pre class="ascii-banner inline-block text-left" aria-hidden="true">
+ ██╗  ██╗ █████╗  ██████╗██╗  ██╗██╗███╗   ██╗ ██████╗
+ ██║  ██║██╔══██╗██╔════╝██║ ██╔╝██║████╗  ██║██╔════╝
+ ███████║███████║██║     █████╔╝ ██║██╔██╗ ██║██║  ███╗
+ ██╔══██║██╔══██║██║     ██╔═██╗ ██║██║╚██╗██║██║   ██║
+ ██║  ██║██║  ██║╚██████╗██║  ██╗██║██║ ╚████║╚██████╔╝
+ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝
+        &amp;  SECURING  LLMs</pre>
+            <p class="pj-green-secondary text-sm mt-4 tracking-wider">
+                &gt; 30 INTERACTIVE DEMOS // ATTACKS + DEFENSES + AZURE // LOCAL LLM VIA OLLAMA
+            </p>
+        </div>
+
+        <!-- Attack Demos -->
+        <div class="mb-10">
+            <h2 class="text-terminal-amber text-sm font-bold tracking-[0.3em] mb-4 flex items-center gap-3">
+                <span class="status-dot warning"></span>
+                ATTACK DEMOS
+                <span class="flex-1 border-t border-terminal-amber/20"></span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for demo in attacks %}
+                <a href="{{ demo.url_prefix }}"
+                   class="group block p-5 rounded border border-terminal-amber/20 bg-terminal-amber/5
+                          hover:border-terminal-amber/50 hover:shadow-[0_0_20px_rgba(255,176,0,0.1)]
+                          transition-all duration-300">
+                    <div class="flex items-start gap-3">
+                        <span class="pj-amber-label text-2xl font-bold leading-none">{{ demo.id }}</span>
+                        <div>
+                            <h3 class="text-terminal-amber font-bold text-sm group-hover:neon-text-amber transition-all">
+                                {{ demo.name }}
+                            </h3>
+                            <p class="pj-amber-label text-xs mt-1">&gt; {{ demo.url_prefix }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Defense Demos -->
+        <div class="mb-10">
+            <h2 class="text-neon-cyan text-sm font-bold tracking-[0.3em] mb-4 flex items-center gap-3">
+                <span class="status-dot" style="background-color: var(--color-neon-cyan); box-shadow: 0 0 6px var(--color-neon-cyan);"></span>
+                DEFENSE DEMOS
+                <span class="flex-1 border-t border-neon-cyan/20"></span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for demo in defenses %}
+                <a href="{{ demo.url_prefix }}"
+                   class="group block p-5 rounded border border-neon-cyan/20 bg-neon-cyan/5
+                          hover:border-neon-cyan/50 hover:shadow-[0_0_20px_rgba(0,255,240,0.1)]
+                          transition-all duration-300">
+                    <div class="flex items-start gap-3">
+                        <span class="pj-cyan-label text-2xl font-bold leading-none">{{ demo.id }}</span>
+                        <div>
+                            <h3 class="text-neon-cyan font-bold text-sm group-hover:neon-text-cyan transition-all">
+                                {{ demo.name }}
+                            </h3>
+                            <p class="pj-cyan-label text-xs mt-1">&gt; {{ demo.url_prefix }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Advanced Attack Demos -->
+        <div class="mb-10">
+            <h2 class="text-neon-red text-sm font-bold tracking-[0.3em] mb-4 flex items-center gap-3">
+                <span class="status-dot danger"></span>
+                ADVANCED ATTACK DEMOS
+                <span class="flex-1 border-t border-neon-red/20"></span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {% for demo in advanced %}
+                <a href="{{ demo.url_prefix }}"
+                   class="group block p-5 rounded border border-neon-red/20 bg-neon-red/5
+                          hover:border-neon-red/50 hover:shadow-[0_0_20px_rgba(255,0,64,0.1)]
+                          transition-all duration-300">
+                    <div class="flex items-start gap-3">
+                        <span class="pj-red-label text-2xl font-bold leading-none">{{ demo.id }}</span>
+                        <div>
+                            <h3 class="text-neon-red font-bold text-sm group-hover:neon-text-red transition-all">
+                                {{ demo.name }}
+                            </h3>
+                            <p class="pj-red-label text-xs mt-1">&gt; {{ demo.url_prefix }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Azure Defense Demos -->
+        <div class="mb-10">
+            <h2 class="text-[#0078d4] text-sm font-bold tracking-[0.3em] mb-4 flex items-center gap-3">
+                <span class="status-dot" style="background-color: #0078d4; box-shadow: 0 0 6px #0078d4;"></span>
+                AZURE DEFENSE DEMOS
+                <span class="flex-1 border-t border-[#0078d4]/20"></span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {% for demo in azure %}
+                <a href="{{ demo.url_prefix }}"
+                   class="group block p-5 rounded border border-[#0078d4]/20 bg-[#0078d4]/5
+                          hover:border-[#0078d4]/50 hover:shadow-[0_0_20px_rgba(0,120,212,0.1)]
+                          transition-all duration-300">
+                    <div class="flex items-start gap-3">
+                        <span class="text-[#0078d4]/60 text-2xl font-bold leading-none">{{ demo.id }}</span>
+                        <div>
+                            <h3 class="text-[#0078d4] font-bold text-sm transition-all">
+                                {{ demo.name }}
+                            </h3>
+                            <p class="text-[#0078d4]/50 text-xs mt-1">&gt; {{ demo.url_prefix }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Quick Start -->
+        <div class="border border-green-500/20 rounded p-5 bg-green-500/5 text-center">
+            <p class="text-green-400/60 text-sm">
+                <span class="text-terminal-green">&gt;</span>
+                Select a demo above to begin
+                <span class="blink-cursor text-terminal-green">█</span>
+            </p>
+            <p class="pj-green-muted text-xs mt-2">
+                Keyboard: 1-9 and 0 jump directly to demos 01-10
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Keyboard navigation: number keys jump to demos
+document.addEventListener('keydown', function(e) {
+    // Skip if user is typing in an input/textarea
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    var key = e.key;
+    if (key >= '1' && key <= '9') {
+        window.location.href = '/demo-0' + key;
+    } else if (key === '0') {
+        window.location.href = '/demo-10';
+    }
+});
+</script>
+{% endblock %}

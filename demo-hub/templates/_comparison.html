@@ -1,0 +1,350 @@
+{#
+  Reusable side-by-side comparison partial for vulnerable vs defended demos.
+
+  Usage:
+    {% include "_comparison.html" %}
+
+  Expected blocks/variables set by the including template:
+    - comparison_title (str): e.g. "INPUT SANITIZATION"
+    - defense_layers (list of str): e.g. ["regex_filter", "input_sanitizer", "llm_judge"]
+    - quick_actions (list of {name, value}): buttons for canned attacks
+    - input_placeholder (str): placeholder for the text input
+    - api_endpoint (str): POST endpoint for comparison, e.g. "/demo-06/api/compare"
+    - reset_endpoint (str): POST endpoint for reset, e.g. "/demo-06/api/reset"
+    - vuln_label (str, optional): Custom left panel label (default: "VULNERABLE")
+    - defended_label (str, optional): Custom right panel label (default: "DEFENDED")
+
+  SSE event convention:
+    vuln_token   → append token to left panel streaming element
+    vuln_result  → final vulnerable result
+    defended_token → append token to right panel streaming element
+    defended_result → final defended result with defense layer verdicts
+    done → both panels complete
+#}
+
+<!-- Split-Screen Panels -->
+<div class="flex-1 flex overflow-hidden min-h-0">
+
+    <!-- LEFT: Vulnerable System -->
+    <div class="w-1/2 flex flex-col border-r border-green-500/20">
+        <div class="px-4 py-2 border-b border-neon-red/30 bg-neon-red/5 shrink-0 flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-neon-red neon-glow-red"></div>
+            <span class="text-neon-red font-bold text-sm tracking-wider neon-text-red">
+                [ {{ vuln_label | default('VULNERABLE') }} ]
+            </span>
+            <span class="pj-red-label text-xs ml-auto">NO DEFENSES</span>
+        </div>
+        <div id="vuln-panel" class="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+            <div class="pj-green-muted text-xs">
+                &gt; SYSTEM ONLINE — NO DEFENSES<br>
+                &gt; AWAITING INPUT...
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Defended System -->
+    <div class="w-1/2 flex flex-col">
+        <div class="px-4 py-2 border-b border-terminal-green/30 bg-terminal-green/5 shrink-0 flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-terminal-green neon-glow-green"></div>
+            <span class="text-terminal-green font-bold text-sm tracking-wider neon-text-green">
+                [ {{ defended_label | default('DEFENDED') }} ]
+            </span>
+            <span class="pj-green-label text-xs ml-auto">GUARDS ACTIVE</span>
+        </div>
+
+        <!-- Defense Layer Indicators -->
+        <div id="defense-indicators" class="px-4 py-2 border-b border-green-500/20 shrink-0 flex gap-3 flex-wrap">
+            <!-- Populated by JS from defense_layers variable -->
+        </div>
+
+        <div id="defended-panel" class="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+            <div class="pj-green-muted text-xs">
+                &gt; SYSTEM ONLINE — ALL GUARDS ARMED<br>
+                &gt; AWAITING INPUT...
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    .defense-indicator.active .indicator-dot {
+        background-color: #00ff00 !important;
+        box-shadow: 0 0 8px #00ff00, 0 0 20px rgba(0, 255, 0, 0.4);
+        animation: pulseGreen 1.5s ease-in-out 3;
+    }
+    .defense-indicator.active .indicator-label {
+        color: #00ff00 !important;
+        text-shadow: 0 0 5px #00ff00, 0 0 10px rgba(0, 255, 0, 0.3);
+    }
+    .defense-indicator.blocked .indicator-dot {
+        background-color: #ff0040 !important;
+        box-shadow: 0 0 8px #ff0040, 0 0 20px rgba(255, 0, 64, 0.4);
+    }
+    .defense-indicator.blocked .indicator-label {
+        color: #ff0040 !important;
+    }
+    .blocked-msg {
+        border-left: 3px solid #00ff00;
+        padding-left: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    .attack-succeeded {
+        border-left: 3px solid #ff0040;
+        padding-left: 0.75rem;
+        margin-top: 0.25rem;
+    }
+</style>
+
+<script>
+/**
+ * ComparisonUI — shared JS for side-by-side demos.
+ *
+ * Initialize with:
+ *   var comparison = new ComparisonUI({
+ *     apiEndpoint: '/demo-06/api/compare',
+ *     resetEndpoint: '/demo-06/api/reset',
+ *     defenseLayerNames: ['regex_filter', 'input_sanitizer', 'llm_judge', 'llm_guard_scanner'],
+ *   });
+ */
+function ComparisonUI(config) {
+    var self = this;
+    self.vulnPanel = document.getElementById('vuln-panel');
+    self.defendedPanel = document.getElementById('defended-panel');
+    self.indicatorContainer = document.getElementById('defense-indicators');
+    self.isRunning = false;
+
+    // Build defense layer indicators
+    (config.defenseLayerNames || []).forEach(function(name) {
+        var div = document.createElement('div');
+        div.className = 'defense-indicator flex items-center gap-1.5';
+        div.setAttribute('data-layer', name);
+        div.innerHTML =
+            '<div class="indicator-dot w-2 h-2 rounded-full bg-gray-600 transition-all duration-500"></div>' +
+            '<span class="indicator-label text-gray-500 text-xs font-bold tracking-wider transition-all duration-500">' +
+            name.toUpperCase().replace(/_/g, ' ') + '</span>';
+        self.indicatorContainer.appendChild(div);
+    });
+
+    self.escapeHtml = function(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
+    self.scrollToBottom = function(el) {
+        el.scrollTop = el.scrollHeight;
+    };
+
+    self.addEntry = function(panel, html) {
+        var el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        panel.appendChild(el);
+        self.scrollToBottom(panel);
+    };
+
+    self.resetIndicators = function() {
+        self.indicatorContainer.querySelectorAll('.defense-indicator').forEach(function(ind) {
+            ind.classList.remove('active', 'blocked');
+        });
+    };
+
+    self.activateIndicator = function(layerName, isBlocked) {
+        var indicator = self.indicatorContainer.querySelector('[data-layer="' + layerName + '"]');
+        if (indicator) {
+            indicator.classList.add(isBlocked ? 'blocked' : 'active');
+        }
+    };
+
+    self.run = function(payload) {
+        if (self.isRunning) return;
+        self.isRunning = true;
+        self.resetIndicators();
+
+        // Show attack input
+        var attackHtml =
+            '<div class="border border-terminal-amber/30 rounded p-2 bg-terminal-amber/5 mb-2">' +
+            '<div class="text-terminal-amber text-xs font-bold tracking-wider mb-1">&gt; ATTACK INPUT</div>' +
+            '<div class="text-terminal-amber/80 text-sm">' + self.escapeHtml(payload) + '</div></div>';
+        self.addEntry(self.vulnPanel, attackHtml);
+        self.addEntry(self.defendedPanel, attackHtml);
+
+        // Streaming placeholders
+        self.addEntry(self.vulnPanel, '<div class="pj-red-secondary text-xs transmitting">&gt; PROCESSING...</div>');
+        self.addEntry(self.defendedPanel, '<div class="pj-green-secondary text-xs transmitting">&gt; PROCESSING...</div>');
+
+        // Create streaming targets
+        var vulnStream = document.createElement('div');
+        vulnStream.className = 'text-neon-red/80 text-sm leading-relaxed vuln-stream';
+        self.vulnPanel.appendChild(vulnStream);
+
+        var defStream = document.createElement('div');
+        defStream.className = 'text-terminal-green/80 text-sm leading-relaxed defended-stream';
+        self.defendedPanel.appendChild(defStream);
+
+        fetch(config.apiEndpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({payload: payload}),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) {
+                        self.isRunning = false;
+                        return;
+                    }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    var eventType = '';
+                    var eventData = '';
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) {
+                            eventType = line.slice(7).trim();
+                        } else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                self.handleEvent(eventType, eventData, vulnStream, defStream);
+                                eventType = '';
+                                eventData = '';
+                            }
+                        }
+                    }
+                    processChunk();
+                });
+            }
+            processChunk();
+        }).catch(function(err) {
+            self.addEntry(self.vulnPanel, '<div class="text-neon-red">[ERROR] ' + self.escapeHtml(err.message) + '</div>');
+            self.isRunning = false;
+        });
+    };
+
+    self.handleEvent = function(type, dataStr, vulnStream, defStream) {
+        var data;
+        try { data = JSON.parse(dataStr); } catch(e) { return; }
+
+        switch (type) {
+            case 'vuln_token':
+                var tx = self.vulnPanel.querySelector('.transmitting');
+                if (tx) tx.remove();
+                vulnStream.textContent += data.token;
+                self.scrollToBottom(self.vulnPanel);
+                break;
+
+            case 'vuln_result':
+                var vtx = self.vulnPanel.querySelector('.transmitting');
+                if (vtx) vtx.remove();
+                if (data.response) {
+                    vulnStream.textContent = '';
+                    self.addEntry(self.vulnPanel,
+                        '<div class="attack-succeeded mt-1">' +
+                        '<div class="pj-red-secondary text-xs font-bold mb-1">&lt; VULNERABLE RESPONSE:</div>' +
+                        '<div class="text-neon-red/80 text-sm leading-relaxed">' + self.escapeHtml(data.response) + '</div></div>'
+                    );
+                }
+                break;
+
+            case 'defended_token':
+                var dtx = self.defendedPanel.querySelector('.transmitting');
+                if (dtx) dtx.remove();
+                defStream.textContent += data.token;
+                self.scrollToBottom(self.defendedPanel);
+                break;
+
+            case 'defended_result':
+                var ddtx = self.defendedPanel.querySelector('.transmitting');
+                if (ddtx) ddtx.remove();
+                defStream.textContent = '';
+
+                // Show defense layer verdicts
+                if (data.layers) {
+                    var layerHtml = '<div class="space-y-1 mb-2">';
+                    for (var i = 0; i < data.layers.length; i++) {
+                        var layer = data.layers[i];
+                        var passed = !layer.blocked;
+                        var color = passed ? 'text-terminal-green' : 'text-neon-red';
+                        var badge = passed ? '[ PASS ]' : '[ BLOCKED ]';
+                        var timingStr = layer.latency_ms ? ' (' + layer.latency_ms.toFixed(1) + 'ms)' : '';
+                        layerHtml += '<div class="text-xs ' + color + '">&gt; ' +
+                            self.escapeHtml(layer.name.toUpperCase()) + ' ' + badge;
+                        if (layer.reason) layerHtml += ' — ' + self.escapeHtml(layer.reason);
+                        if (timingStr) layerHtml += ' <span class="pj-green-label">' + timingStr + '</span>';
+                        layerHtml += '</div>';
+
+                        self.activateIndicator(layer.name, layer.blocked);
+                    }
+                    layerHtml += '</div>';
+                    self.addEntry(self.defendedPanel, layerHtml);
+                }
+
+                if (data.blocked) {
+                    self.addEntry(self.defendedPanel,
+                        '<div class="blocked-msg mt-1">' +
+                        '<div class="text-terminal-green font-bold text-xs mb-1 tracking-wider">[ BLOCKED ]</div>' +
+                        '<div class="text-terminal-green/80 text-sm">' + self.escapeHtml(data.response || 'Attack blocked by defense layers.') + '</div></div>'
+                    );
+                } else {
+                    self.addEntry(self.defendedPanel,
+                        '<div class="border border-green-500/20 rounded p-2 bg-green-500/5 mt-1">' +
+                        '<div class="pj-green-secondary text-xs font-bold mb-1">&lt; DEFENDED RESPONSE:</div>' +
+                        '<div class="text-terminal-green/80 text-sm">' + self.escapeHtml(data.response || '') + '</div></div>'
+                    );
+                }
+                break;
+
+            case 'error':
+                self.addEntry(self.vulnPanel, '<div class="text-neon-red font-bold">[ERROR] ' + self.escapeHtml(data.message) + '</div>');
+                self.addEntry(self.defendedPanel, '<div class="text-neon-red font-bold">[ERROR] ' + self.escapeHtml(data.message) + '</div>');
+                break;
+
+            case 'done':
+                self.addEntry(self.vulnPanel, '<div class="pj-green-muted text-xs mt-2">&gt; AWAITING NEXT INPUT...</div>');
+                self.addEntry(self.defendedPanel, '<div class="pj-green-muted text-xs mt-2">&gt; AWAITING NEXT INPUT...</div>');
+                self.isRunning = false;
+                // Save result for export
+                self.resultHistory.push({
+                    timestamp: new Date().toISOString(),
+                    vuln: self.vulnPanel.innerText.slice(-500),
+                    defended: self.defendedPanel.innerText.slice(-500),
+                });
+                break;
+        }
+    };
+
+    // Result history for export
+    self.resultHistory = [];
+
+    self.exportResults = function() {
+        var blob = new Blob([JSON.stringify(self.resultHistory, null, 2)], {type: 'application/json'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'comparison_results.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        if (window.showToast) window.showToast('Results exported', 'success');
+    };
+
+    self.reset = function() {
+        fetch(config.resetEndpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+        }).then(function() {
+            self.vulnPanel.innerHTML = '<div class="pj-green-muted text-xs">&gt; STATE RESET<br>&gt; AWAITING INPUT...</div>';
+            self.defendedPanel.innerHTML = '<div class="pj-green-muted text-xs">&gt; STATE RESET — GUARDS RE-ARMED<br>&gt; AWAITING INPUT...</div>';
+            self.resetIndicators();
+            self.isRunning = false;
+            self.resultHistory = [];
+            if (window.showToast) window.showToast('State reset', 'success');
+        });
+    };
+}
+</script>

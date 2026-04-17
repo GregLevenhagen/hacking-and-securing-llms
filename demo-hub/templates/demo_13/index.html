@@ -1,0 +1,308 @@
+{% extends "hub_base.html" %}
+
+{% block title %}HALLUCINATION EXPLOITATION // DEMO 13{% endblock %}
+
+{% block demo_content %}
+<div class="h-full flex flex-col">
+
+    <!-- Header -->
+    <div class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="text-neon-cyan text-sm tracking-wider font-bold">
+            [ HALLUCINATION EXPLOITATION // DEMO 13 ]
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="run-all-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all font-bold"
+            >RUN ALL ATTACKS</button>
+            <button id="reset-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all"
+            >RESET</button>
+        </div>
+    </div>
+
+    <!-- Attack buttons -->
+    <div class="border-b border-green-500/20 px-6 py-3 shrink-0">
+        <div class="pj-green-label text-xs tracking-wider mb-2">&gt; HALLUCINATION ATTACK VECTORS:</div>
+        <div class="flex flex-wrap gap-2">
+            {% for p in prompts %}
+            <button class="attack-btn px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all font-mono"
+                data-attack-id="{{ p.id }}"
+                title="{{ p.description }}"
+            >&gt; {{ p.name }}</button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Results panel -->
+    <div id="results" class="flex-1 overflow-y-auto px-6 py-4 space-y-2 scrollbar-thin">
+        <div class="pj-green-secondary text-xs">
+            &gt; {{ prompts | length }} HALLUCINATION ATTACK PROMPTS LOADED<br>
+            &gt; VERIFICATION ENGINE: URL / CITATION / API / FACT-CHECK<br>
+            &gt; CLICK AN ATTACK OR "RUN ALL" TO BEGIN...
+        </div>
+    </div>
+
+    <!-- Summary bar (hidden until results come in) -->
+    <div id="summary-bar" class="border-t border-green-500/30 px-6 py-3 shrink-0 hidden">
+        <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-4">
+                <span class="pj-green-label tracking-wider">&gt; SUMMARY:</span>
+                <span class="text-neon-red font-bold" id="summary-fabricated">0 FABRICATED</span>
+                <span class="text-terminal-amber font-bold" id="summary-unverified">0 UNVERIFIED</span>
+                <span class="text-terminal-green font-bold" id="summary-real">0 REAL</span>
+            </div>
+            <div class="pj-green-secondary" id="summary-total">0 total claims checked</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; HALLUCINATION DETECTOR: ACTIVE // DEMO 13</span>
+<span class="float-right">HALLUCINATION EXPLOITATION // DEMO HUB</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    var results = document.getElementById('results');
+    var runAllBtn = document.getElementById('run-all-btn');
+    var resetBtn = document.getElementById('reset-btn');
+    var summaryBar = document.getElementById('summary-bar');
+    var isRunning = false;
+    var API_BASE = '/demo-13';
+
+    // Running totals
+    var totalFabricated = 0;
+    var totalUnverified = 0;
+    var totalReal = 0;
+    var totalClaims = 0;
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function addEntry(html) {
+        var el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        results.appendChild(el);
+        results.scrollTop = results.scrollHeight;
+    }
+
+    function updateSummary() {
+        totalClaims = totalFabricated + totalUnverified + totalReal;
+        document.getElementById('summary-fabricated').textContent = totalFabricated + ' FABRICATED';
+        document.getElementById('summary-unverified').textContent = totalUnverified + ' UNVERIFIED';
+        document.getElementById('summary-real').textContent = totalReal + ' REAL';
+        document.getElementById('summary-total').textContent = totalClaims + ' total claims checked';
+        summaryBar.classList.remove('hidden');
+    }
+
+    function sseStream(url, body, handlers) {
+        isRunning = true;
+        setButtonsEnabled(false);
+
+        fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) { isRunning = false; setButtonsEnabled(true); return; }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    var eventType = '', eventData = '';
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) eventType = line.slice(7).trim();
+                        else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                var data; try { data = JSON.parse(eventData); } catch(e) { continue; }
+                                if (handlers[eventType]) handlers[eventType](data);
+                                eventType = ''; eventData = '';
+                            }
+                        }
+                    }
+                    processChunk();
+                });
+            }
+            processChunk();
+        }).catch(function(err) {
+            addEntry('<div class="text-neon-red">[ERROR] ' + escapeHtml(err.message) + '</div>');
+            isRunning = false;
+            setButtonsEnabled(true);
+        });
+    }
+
+    function setButtonsEnabled(enabled) {
+        runAllBtn.disabled = !enabled;
+        document.querySelectorAll('.attack-btn').forEach(function(btn) {
+            btn.disabled = !enabled;
+        });
+    }
+
+    function getCategoryBadge(category) {
+        var colors = {
+            academic: 'text-neon-cyan',
+            reference: 'text-terminal-amber',
+            technical: 'text-terminal-green',
+            factual: 'text-neon-red',
+            quotation: 'text-purple-400',
+            regulatory: 'text-yellow-400',
+        };
+        var color = colors[category] || 'pj-green-secondary';
+        return '<span class="' + color + ' text-xs font-bold uppercase">[' + escapeHtml(category) + ']</span>';
+    }
+
+    function makeVerificationHtml(claim) {
+        var statusClass, statusLabel;
+        if (claim.valid === false) {
+            statusClass = 'text-neon-red font-bold';
+            statusLabel = 'FABRICATED';
+        } else if (claim.valid === true) {
+            statusClass = 'text-terminal-green font-bold';
+            statusLabel = 'REAL';
+        } else {
+            statusClass = 'text-terminal-amber font-bold';
+            statusLabel = 'UNVERIFIED';
+        }
+
+        return (
+            '<div class="flex items-start gap-2 py-1 border-b border-green-500/10 last:border-0">' +
+            '<span class="' + statusClass + ' text-xs shrink-0 w-24">[' + statusLabel + ']</span>' +
+            '<div class="flex-1 min-w-0">' +
+            '<div class="text-xs text-terminal-green/80 truncate">' + escapeHtml(claim.text) + '</div>' +
+            '<div class="pj-green-secondary text-xs">' + escapeHtml(claim.reason) + '</div>' +
+            '</div></div>'
+        );
+    }
+
+    var currentStreamEl = null;
+    var currentVerificationContainer = null;
+
+    function makeAttackHandlers() {
+        return {
+            attack_start: function(data) {
+                var html =
+                    '<div class="border border-terminal-amber/30 rounded p-3 bg-terminal-amber/5 mt-3">' +
+                    '<div class="flex items-center gap-2 flex-wrap">' +
+                    (typeof data.index !== 'undefined' ? '<span class="pj-amber-label text-xs font-bold">[' + (data.index + 1) + ']</span>' : '') +
+                    '<span class="text-terminal-amber font-bold text-xs">' + escapeHtml(data.name) + '</span>' +
+                    getCategoryBadge(data.category) +
+                    '<span class="pj-green-secondary text-xs">(' + escapeHtml(data.verification_type) + ' check)</span>' +
+                    '</div>' +
+                    '<div class="pj-amber-body text-xs mt-1">' + escapeHtml(data.prompt) + '</div>' +
+                    (data.description ? '<div class="pj-green-secondary text-xs mt-1 italic">' + escapeHtml(data.description) + '</div>' : '') +
+                    '</div>';
+                addEntry(html);
+
+                // Create streaming target for LLM response
+                var el = document.createElement('div');
+                el.className = 'text-terminal-green/80 text-sm pl-4 mt-1 max-h-48 overflow-y-auto scrollbar-thin';
+                var pre = document.createElement('pre');
+                pre.className = 'whitespace-pre-wrap text-xs';
+                el.appendChild(pre);
+                results.appendChild(el);
+                currentStreamEl = pre;
+
+                // Create verification container
+                var vc = document.createElement('div');
+                vc.className = 'pl-4 mt-2 space-y-0';
+                results.appendChild(vc);
+                currentVerificationContainer = vc;
+            },
+            token: function(data) {
+                if (currentStreamEl) {
+                    currentStreamEl.textContent += data.token;
+                    results.scrollTop = results.scrollHeight;
+                }
+            },
+            verification_result: function(data) {
+                // Update running totals
+                if (data.valid === false) totalFabricated++;
+                else if (data.valid === true) totalReal++;
+                else totalUnverified++;
+                updateSummary();
+
+                if (currentVerificationContainer) {
+                    var el = document.createElement('div');
+                    el.className = 'message-fade-in';
+                    el.innerHTML = makeVerificationHtml(data);
+                    currentVerificationContainer.appendChild(el);
+                    results.scrollTop = results.scrollHeight;
+                }
+            },
+            attack_result: function(data) {
+                currentStreamEl = null;
+                var s = data.summary;
+                var color = s.fabricated > 0 ? 'neon-red' : 'terminal-green';
+                addEntry(
+                    '<div class="pl-4 mt-1 mb-2">' +
+                    '<div class="text-' + color + ' font-bold text-xs">' +
+                    '> RESULT: ' + s.fabricated + '/' + s.total + ' FABRICATED, ' +
+                    s.real + '/' + s.total + ' REAL' +
+                    (s.unverified > 0 ? ', ' + s.unverified + ' UNVERIFIED' : '') +
+                    '</div></div>'
+                );
+            },
+            error: function(data) {
+                addEntry('<div class="text-neon-red">[ERROR] ' + escapeHtml(data.message) + '</div>');
+            },
+            done: function() {
+                addEntry('<div class="pj-green-label text-xs mt-2">&gt; ATTACK SEQUENCE COMPLETE</div>');
+                isRunning = false;
+                setButtonsEnabled(true);
+            },
+        };
+    }
+
+    // Run all attacks
+    runAllBtn.addEventListener('click', function() {
+        if (isRunning) return;
+        addEntry('<div class="text-neon-red font-bold text-xs tracking-wider mt-2">' +
+            String.fromCharCode(9552).repeat(3) + ' RUNNING ALL HALLUCINATION ATTACKS ' + String.fromCharCode(9552).repeat(3) + '</div>');
+        sseStream(API_BASE + '/api/run-all', {}, makeAttackHandlers());
+    });
+
+    // Individual attack buttons
+    document.querySelectorAll('.attack-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (isRunning) return;
+            var attackId = btn.getAttribute('data-attack-id');
+            addEntry('<div class="text-terminal-amber font-bold text-xs tracking-wider mt-2">' +
+                '&gt; LAUNCHING: ' + escapeHtml(attackId).toUpperCase() + '</div>');
+            sseStream(API_BASE + '/api/attack', {attack_id: attackId}, makeAttackHandlers());
+        });
+    });
+
+    // Reset
+    resetBtn.addEventListener('click', function() {
+        fetch(API_BASE + '/api/reset', {method: 'POST', headers: {'Content-Type': 'application/json'}}).then(function() {
+            results.innerHTML =
+                '<div class="pj-green-secondary text-xs">' +
+                '&gt; STATE RESET<br>' +
+                '&gt; {{ prompts | length }} HALLUCINATION ATTACK PROMPTS LOADED<br>' +
+                '&gt; AWAITING INPUT...</div>';
+            summaryBar.classList.add('hidden');
+            totalFabricated = 0;
+            totalUnverified = 0;
+            totalReal = 0;
+            totalClaims = 0;
+            isRunning = false;
+            setButtonsEnabled(true);
+            if (window.showToast) window.showToast('State reset', 'success');
+        });
+    });
+})();
+</script>
+{% endblock %}

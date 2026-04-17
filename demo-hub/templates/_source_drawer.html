@@ -1,0 +1,246 @@
+{#
+  Source Intelligence Drawer — right-side slide-in panel for viewing demo source data.
+
+  Toggle: press `I` key or click the [SRC] gutter handle.
+
+  Expected template variable:
+    source_tabs (list of dict):
+      - id (str): unique tab identifier
+      - label (str): tab display name (e.g. "SYSTEM PROMPTS")
+      - type (str): rendering mode — "text", "json", "files", "list", "table"
+      - content (str, optional): raw text/JSON content (for type=text/json)
+      - files (list of {name, content}, optional): for type=files
+      - items (list of {name, content/value}, optional): for type=list
+      - headers (list of str, optional): for type=table
+      - rows (list of list, optional): for type=table
+#}
+
+{% if source_tabs is defined and source_tabs %}
+
+<!-- Gutter handle -->
+<button id="src-drawer-handle"
+    class="fixed right-0 top-1/2 -translate-y-1/2 z-30 px-1 py-6 bg-[#0a0a0a]/90 border border-r-0 border-neon-cyan/30 rounded-l
+           text-neon-cyan/50 hover:text-neon-cyan hover:border-neon-cyan/60 hover:shadow-[0_0_15px_rgba(0,255,240,0.15)]
+           transition-all duration-200 cursor-pointer"
+    style="writing-mode: vertical-rl; text-orientation: mixed; font-size: 11px; letter-spacing: 0.15em;"
+    aria-label="Toggle source intelligence drawer (I)"
+    title="Source data (I)">
+    [ SRC ]
+</button>
+
+<!-- Drawer backdrop -->
+<div id="src-drawer-backdrop" class="fixed inset-0 z-30 bg-black/50 hidden" aria-hidden="true"></div>
+
+<!-- Drawer panel -->
+<div id="src-drawer" class="fixed top-0 right-0 z-40 h-full w-[480px] transform translate-x-full transition-transform duration-300 ease-out flex flex-col border-l border-neon-cyan/30 bg-[#0a0a0a]/[0.97] backdrop-blur-sm"
+     role="dialog" aria-label="Source intelligence">
+
+    <!-- Drawer header -->
+    <div class="px-4 py-3 border-b border-neon-cyan/30 bg-neon-cyan/5 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-neon-cyan neon-glow-cyan"></div>
+            <span class="text-neon-cyan font-bold text-xs tracking-[0.2em]">[ SOURCE INTELLIGENCE ]</span>
+        </div>
+        <button id="src-drawer-close" class="text-neon-cyan/40 hover:text-neon-cyan text-xs transition-colors" aria-label="Close drawer">
+            [ESC]
+        </button>
+    </div>
+
+    <!-- Tab strip -->
+    <div id="src-tab-strip" class="px-4 py-2 border-b border-green-500/20 shrink-0 flex gap-1 overflow-x-auto scrollbar-thin">
+        {% for tab in source_tabs %}
+        <button class="src-tab px-3 py-1 text-xs rounded transition-all whitespace-nowrap
+                       {% if loop.first %}bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan{% else %}border border-transparent pj-green-label hover:text-neon-cyan hover:border-neon-cyan/20{% endif %}"
+            data-tab-id="{{ tab.id }}">
+            {{ tab.label }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <!-- Tab content area -->
+    <div id="src-tab-content" class="flex-1 overflow-hidden min-h-0">
+        {% for tab in source_tabs %}
+        <div class="src-tab-panel h-full {% if not loop.first %}hidden{% endif %}" data-tab-id="{{ tab.id }}">
+
+            {% if tab.type == "text" %}
+            {# ── Single text block ── #}
+            <div class="h-full overflow-y-auto px-4 py-3 scrollbar-thin">
+                <pre class="pj-green-body text-xs leading-relaxed whitespace-pre-wrap font-mono">{{ tab.content }}</pre>
+            </div>
+
+            {% elif tab.type == "json" %}
+            {# ── JSON with syntax coloring ── #}
+            <div class="h-full overflow-y-auto px-4 py-3 scrollbar-thin">
+                <pre class="text-xs leading-relaxed whitespace-pre-wrap font-mono"><code id="src-json-{{ tab.id }}">{{ tab.content }}</code></pre>
+            </div>
+
+            {% elif tab.type == "files" %}
+            {# ── File browser: list on left, content on right ── #}
+            <div class="h-full flex">
+                <div class="w-[160px] shrink-0 border-r border-green-500/20 overflow-y-auto scrollbar-thin py-2">
+                    {% for file in tab.files %}
+                    <button class="src-file-btn w-full text-left px-3 py-1.5 text-xs transition-all truncate
+                                   {% if loop.first %}bg-neon-cyan/10 text-neon-cyan border-l-2 border-neon-cyan{% else %}pj-green-label hover:text-neon-cyan hover:bg-neon-cyan/5 border-l-2 border-transparent{% endif %}"
+                        data-file-idx="{{ loop.index0 }}"
+                        data-tab-id="{{ tab.id }}"
+                        title="{{ file.name }}">
+                        {{ file.name }}
+                    </button>
+                    {% endfor %}
+                </div>
+                <div class="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin">
+                    {% for file in tab.files %}
+                    <div class="src-file-content {% if not loop.first %}hidden{% endif %}" data-file-idx="{{ loop.index0 }}" data-tab-id="{{ tab.id }}">
+                        <div class="text-neon-cyan text-xs font-bold mb-2 tracking-wider">{{ file.name }}</div>
+                        <pre class="pj-green-body text-xs leading-relaxed whitespace-pre-wrap font-mono">{{ file.content }}</pre>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% elif tab.type == "list" %}
+            {# ── Numbered list of items (payloads, techniques) ── #}
+            <div class="h-full overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+                {% for item in tab["items"] %}
+                <div class="border border-green-500/15 rounded p-2 hover:border-green-500/30 transition-colors">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="pj-amber-label text-xs font-bold">{{ "%02d" | format(loop.index) }}</span>
+                        <span class="pj-amber-body text-xs font-bold">{{ item.name }}</span>
+                    </div>
+                    <pre class="pj-green-body text-xs leading-relaxed whitespace-pre-wrap font-mono pl-6">{{ item.content or item.value or "" }}</pre>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% elif tab.type == "table" %}
+            {# ── Table view (mock database) ── #}
+            <div class="h-full overflow-auto px-4 py-3 scrollbar-thin">
+                <table class="w-full text-xs font-mono border-collapse">
+                    <thead>
+                        <tr>
+                            {% for header in tab.headers %}
+                            <th class="text-left px-2 py-1 border-b border-green-500/30 text-neon-cyan font-bold tracking-wider">{{ header }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in tab.rows %}
+                        <tr class="hover:bg-green-500/5">
+                            {% for cell in row %}
+                            <td class="px-2 py-1 border-b border-green-500/10 pj-green-body">{{ cell }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% endif %}
+
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Drawer footer -->
+    <div class="px-4 py-2 border-t border-green-500/20 shrink-0 pj-green-muted text-xs flex justify-between">
+        <span>[I] toggle &middot; [ESC] close</span>
+        <span>READ-ONLY</span>
+    </div>
+</div>
+
+<script>
+(function() {
+    var drawer = document.getElementById('src-drawer');
+    var backdrop = document.getElementById('src-drawer-backdrop');
+    var handle = document.getElementById('src-drawer-handle');
+    var closeBtn = document.getElementById('src-drawer-close');
+    if (!drawer) return;
+
+    var isOpen = false;
+
+    function openDrawer() {
+        drawer.classList.remove('translate-x-full');
+        drawer.classList.add('translate-x-0');
+        backdrop.classList.remove('hidden');
+        handle.style.display = 'none';
+        isOpen = true;
+    }
+
+    function closeDrawer() {
+        drawer.classList.add('translate-x-full');
+        drawer.classList.remove('translate-x-0');
+        backdrop.classList.add('hidden');
+        handle.style.display = '';
+        isOpen = false;
+        // Refocus the main input
+        var mainInput = document.querySelector('#chat-input, #agent-input, #compare-input, #custom-attack-input');
+        if (mainInput) mainInput.focus();
+    }
+
+    function toggleDrawer() {
+        if (isOpen) closeDrawer(); else openDrawer();
+    }
+
+    handle.addEventListener('click', openDrawer);
+    closeBtn.addEventListener('click', closeDrawer);
+    backdrop.addEventListener('click', closeDrawer);
+
+    // Keyboard: I to toggle, Escape to close
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        if (e.key === 'i' || e.key === 'I') {
+            e.preventDefault();
+            toggleDrawer();
+        }
+        if (e.key === 'Escape' && isOpen) {
+            e.stopPropagation();
+            closeDrawer();
+        }
+    });
+
+    // Tab switching
+    document.querySelectorAll('.src-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var tabId = tab.getAttribute('data-tab-id');
+            // Update tab styles
+            document.querySelectorAll('.src-tab').forEach(function(t) {
+                t.classList.remove('bg-neon-cyan/10', 'border-neon-cyan/40', 'text-neon-cyan');
+                t.classList.add('border-transparent', 'pj-green-label');
+            });
+            tab.classList.add('bg-neon-cyan/10', 'border-neon-cyan/40', 'text-neon-cyan');
+            tab.classList.remove('border-transparent', 'pj-green-label');
+            // Show matching panel
+            document.querySelectorAll('.src-tab-panel').forEach(function(p) {
+                p.classList.add('hidden');
+            });
+            var panel = document.querySelector('.src-tab-panel[data-tab-id="' + tabId + '"]');
+            if (panel) panel.classList.remove('hidden');
+        });
+    });
+
+    // File browser navigation
+    document.querySelectorAll('.src-file-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var idx = btn.getAttribute('data-file-idx');
+            var tabId = btn.getAttribute('data-tab-id');
+            // Update file button styles within the same tab
+            document.querySelectorAll('.src-file-btn[data-tab-id="' + tabId + '"]').forEach(function(b) {
+                b.classList.remove('bg-neon-cyan/10', 'text-neon-cyan', 'border-neon-cyan');
+                b.classList.add('pj-green-label', 'border-transparent');
+            });
+            btn.classList.add('bg-neon-cyan/10', 'text-neon-cyan', 'border-neon-cyan');
+            btn.classList.remove('pj-green-label', 'border-transparent');
+            // Show matching file content
+            document.querySelectorAll('.src-file-content[data-tab-id="' + tabId + '"]').forEach(function(c) {
+                c.classList.add('hidden');
+            });
+            var content = document.querySelector('.src-file-content[data-tab-id="' + tabId + '"][data-file-idx="' + idx + '"]');
+            if (content) content.classList.remove('hidden');
+        });
+    });
+})();
+</script>
+
+{% endif %}

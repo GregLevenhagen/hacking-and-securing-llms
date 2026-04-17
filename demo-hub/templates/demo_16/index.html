@@ -1,0 +1,495 @@
+{% extends "hub_base.html" %}
+
+{% block title %}PRIVILEGE ESCALATION // DEMO 16{% endblock %}
+
+{% block demo_content %}
+<style>
+    /* Permission level bar animations */
+    .perm-level { transition: all 0.5s ease-out; }
+    .perm-level.active {
+        animation: permPulse 1.5s ease-in-out;
+    }
+    @keyframes permPulse {
+        0% { transform: scale(1); }
+        30% { transform: scale(1.08); }
+        60% { transform: scale(1.02); }
+        100% { transform: scale(1); }
+    }
+    .perm-bar-fill {
+        transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .perm-glow {
+        transition: box-shadow 0.5s ease-out, border-color 0.5s ease-out;
+    }
+    /* Escalation flash */
+    .escalation-flash {
+        animation: escFlash 0.8s ease-out;
+    }
+    @keyframes escFlash {
+        0% { background-color: rgba(255, 0, 64, 0.3); }
+        100% { background-color: transparent; }
+    }
+</style>
+
+<div class="h-full flex flex-col">
+
+    <!-- Demo Header -->
+    <div class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="text-neon-cyan text-sm tracking-wider font-bold">
+            [ PRIVILEGE ESCALATION // DEMO 16 ]
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="pj-red-button text-xs tracking-wider">
+                VULNERABLE RBAC — ELEVATION AUTO-GRANTED
+            </div>
+            <button id="reset-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all"
+            >RESET</button>
+        </div>
+    </div>
+
+    <!-- Permission Level Indicator Bar -->
+    <div id="perm-bar" class="border-b border-green-500/30 px-6 py-3 shrink-0 bg-[#0a0a0a]/50">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="pj-green-label text-xs tracking-wider">&gt; CURRENT PERMISSION LEVEL:</span>
+            <span id="perm-level-text" class="text-terminal-green font-bold text-xs tracking-wider">USER</span>
+        </div>
+        <div class="flex items-center gap-1">
+            {% for level in permission_levels %}
+            <div class="perm-level flex-1 relative" data-level="{{ level.value }}" data-name="{{ level.name }}">
+                <div class="perm-glow border rounded px-3 py-2 text-center text-xs font-bold tracking-wider
+                    {% if level.value == 0 %}
+                        border-terminal-green/60 bg-terminal-green/10 text-terminal-green
+                    {% else %}
+                        border-green-500/20 bg-transparent pj-green-label
+                    {% endif %}"
+                    id="perm-block-{{ level.value }}">
+                    <div>{{ level.name }}</div>
+                    <div class="text-[10px] opacity-60 mt-0.5">{{ level.tools|length }} tools</div>
+                </div>
+            </div>
+            {% if not loop.last %}
+            <div class="text-green-500/30 text-xs font-bold shrink-0" id="perm-arrow-{{ level.value }}">&rarr;</div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <!-- Progress bar underneath -->
+        <div class="mt-2 h-1 bg-green-500/10 rounded-full overflow-hidden">
+            <div id="perm-bar-fill" class="perm-bar-fill h-full rounded-full bg-terminal-green" style="width: 8.3%"></div>
+        </div>
+    </div>
+
+    <!-- Conversation panel (terminal log) -->
+    <div id="conversation" class="flex-1 overflow-y-auto px-6 py-4 space-y-2 scrollbar-thin">
+        <div class="pj-green-secondary text-xs mb-4">
+            &gt; RBAC ESCALATION AGENT INITIALIZED<br>
+            &gt; STARTING LEVEL: <span class="text-terminal-green font-bold">USER</span> (3 tools)<br>
+            &gt; VULNERABILITY: <span class="text-neon-red">ELEVATION ENDPOINT GRANTS ALL REQUESTS</span><br>
+            &gt; AWAITING INPUT...
+        </div>
+    </div>
+
+    <!-- Audit Trail (collapsible) -->
+    <div id="audit-panel" class="border-t border-green-500/30 shrink-0 hidden">
+        <button id="audit-toggle" class="w-full px-6 py-2 text-left text-xs pj-green-label hover:text-terminal-green transition-colors flex items-center justify-between">
+            <span>&gt; AUDIT TRAIL (<span id="audit-count">0</span> entries)</span>
+            <span id="audit-chevron" class="transition-transform duration-200">&#9660;</span>
+        </button>
+        <div id="audit-content" class="px-6 pb-3 max-h-40 overflow-y-auto scrollbar-thin hidden">
+        </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="border-t border-green-500/30 px-6 py-4 shrink-0">
+        <form id="agent-form" class="flex items-center gap-3" autocomplete="off">
+            <span class="text-terminal-amber font-bold select-none">$</span>
+            <div class="relative flex-1">
+                <input
+                    type="text"
+                    id="agent-input"
+                    name="message"
+                    class="w-full bg-transparent border border-green-500/30 rounded px-4 py-2 text-terminal-amber placeholder-green-500/40 focus:outline-none focus:border-terminal-green focus:shadow-[0_0_15px_#00ff0033] transition-all duration-200 font-mono"
+                    placeholder="Enter escalation prompt or click a scenario below..."
+                    autofocus
+                >
+                <span class="chat-cursor"></span>
+            </div>
+            <button
+                type="submit"
+                id="send-btn"
+                class="px-4 py-2 border border-green-500/30 text-terminal-green hover:bg-terminal-green/10 hover:shadow-[0_0_15px_#00ff00] active:bg-terminal-green/20 transition-all duration-200 rounded font-bold tracking-wider"
+            >
+                EXECUTE &gt;
+            </button>
+        </form>
+
+        <!-- Scenario Quick Actions -->
+        <div class="mt-3">
+            <div class="pj-green-label text-xs mb-2 tracking-wider">&gt; ESCALATION SCENARIOS:</div>
+            <div class="flex flex-wrap gap-2">
+                {% for scenario in scenarios %}
+                <button class="scenario-btn px-3 py-1 text-xs border rounded transition-all
+                    pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/50 hover:shadow-[0_0_10px_#ff004033]"
+                    data-prompt="{{ scenario.prompt }}"
+                    title="{{ scenario.description }}"
+                >&gt; {{ scenario.name }}</button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; RBAC EXPLOIT: ACTIVE // DEMO 16</span>
+<span class="float-right">PRIVILEGE ESCALATION // DEMO HUB</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    var form = document.getElementById('agent-form');
+    var input = document.getElementById('agent-input');
+    var conversation = document.getElementById('conversation');
+    var sendBtn = document.getElementById('send-btn');
+    var resetBtn = document.getElementById('reset-btn');
+    var permLevelText = document.getElementById('perm-level-text');
+    var permBarFill = document.getElementById('perm-bar-fill');
+    var auditPanel = document.getElementById('audit-panel');
+    var auditContent = document.getElementById('audit-content');
+    var auditCount = document.getElementById('audit-count');
+    var auditToggle = document.getElementById('audit-toggle');
+    var auditChevron = document.getElementById('audit-chevron');
+
+    var isRunning = false;
+    var API_BASE = '/demo-16';
+    var currentLevel = 0;
+    var auditEntries = [];
+    var auditOpen = false;
+
+    var LEVEL_NAMES = ['USER', 'MODERATOR', 'ADMIN', 'SUPERADMIN'];
+    var LEVEL_COLORS = {
+        USER: { border: 'border-terminal-green/60', bg: 'bg-terminal-green/10', text: 'text-terminal-green', bar: '#00ff00' },
+        MODERATOR: { border: 'border-terminal-amber/60', bg: 'bg-terminal-amber/10', text: 'text-terminal-amber', bar: '#ffb000' },
+        ADMIN: { border: 'border-neon-red/60', bg: 'bg-neon-red/10', text: 'text-neon-red', bar: '#ff0040' },
+        SUPERADMIN: { border: 'border-neon-magenta/60', bg: 'bg-neon-magenta/10', text: 'text-neon-magenta', bar: '#ff00ff' }
+    };
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function scrollToBottom() {
+        conversation.scrollTop = conversation.scrollHeight;
+    }
+
+    function addLogEntry(html) {
+        var el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        conversation.appendChild(el);
+        scrollToBottom();
+    }
+
+    function setInputEnabled(enabled) {
+        input.disabled = !enabled;
+        sendBtn.disabled = !enabled;
+        isRunning = !enabled;
+        if (enabled) input.focus();
+    }
+
+    function updatePermissionBar(levelValue, levelName) {
+        currentLevel = levelValue;
+        var pct = ((levelValue + 1) / 4) * 100;
+        permBarFill.style.width = pct + '%';
+
+        var colors = LEVEL_COLORS[levelName] || LEVEL_COLORS.USER;
+        permLevelText.textContent = levelName;
+        permLevelText.className = 'font-bold text-xs tracking-wider ' + colors.text;
+        permBarFill.style.backgroundColor = colors.bar;
+
+        // Update all level blocks
+        for (var i = 0; i < 4; i++) {
+            var block = document.getElementById('perm-block-' + i);
+            var arrow = document.getElementById('perm-arrow-' + i);
+            if (!block) continue;
+
+            // Remove all dynamic classes
+            block.classList.remove(
+                'border-terminal-green/60', 'bg-terminal-green/10', 'text-terminal-green',
+                'border-terminal-amber/60', 'bg-terminal-amber/10', 'text-terminal-amber',
+                'border-neon-red/60', 'bg-neon-red/10', 'text-neon-red',
+                'border-neon-magenta/60', 'bg-neon-magenta/10', 'text-neon-magenta',
+                'border-green-500/20', 'pj-green-label'
+            );
+
+            if (i <= levelValue) {
+                var lvlName = LEVEL_NAMES[i];
+                var c = LEVEL_COLORS[lvlName];
+                block.classList.add(c.border, c.bg, c.text);
+                if (arrow) {
+                    arrow.classList.remove('text-green-500/30');
+                    arrow.classList.add(c.text);
+                }
+            } else {
+                block.classList.add('border-green-500/20', 'pj-green-label');
+                if (arrow) {
+                    arrow.classList.add('text-green-500/30');
+                }
+            }
+
+            // Pulse animation on the current level
+            if (i === levelValue) {
+                block.parentElement.classList.add('active');
+                setTimeout(function(el) { el.classList.remove('active'); }.bind(null, block.parentElement), 1500);
+            }
+        }
+    }
+
+    function permissionBadge(level) {
+        var colors = LEVEL_COLORS[level] || LEVEL_COLORS.USER;
+        return '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border ' +
+            colors.border + ' ' + colors.bg + ' ' + colors.text + '">' + level + '</span>';
+    }
+
+    function addAuditEntry(entry) {
+        auditEntries.push(entry);
+        auditCount.textContent = auditEntries.length;
+        auditPanel.classList.remove('hidden');
+
+        var el = document.createElement('div');
+        el.className = 'text-xs pj-green-secondary py-0.5 border-b border-green-500/10';
+        el.innerHTML = entry;
+        auditContent.appendChild(el);
+        auditContent.scrollTop = auditContent.scrollHeight;
+    }
+
+    function runAgent(message) {
+        setInputEnabled(false);
+        auditEntries = [];
+        auditContent.innerHTML = '';
+        auditCount.textContent = '0';
+        currentLevel = 0;
+        updatePermissionBar(0, 'USER');
+
+        addLogEntry(
+            '<div class="flex items-start gap-2">' +
+            '<span class="text-terminal-amber font-bold shrink-0">$</span>' +
+            '<div class="text-terminal-amber">' + escapeHtml(message) + '</div>' +
+            '</div>'
+        );
+
+        fetch(API_BASE + '/api/attack', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: message}),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) {
+                        setInputEnabled(true);
+                        return;
+                    }
+
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    var eventType = '';
+                    var eventData = '';
+
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) {
+                            eventType = line.slice(7).trim();
+                        } else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                handleEvent(eventType, eventData);
+                                eventType = '';
+                                eventData = '';
+                            }
+                        }
+                    }
+
+                    processChunk();
+                });
+            }
+
+            processChunk();
+        }).catch(function(err) {
+            addLogEntry('<div class="text-neon-red">[CONNECTION ERROR] ' + escapeHtml(err.message) + '</div>');
+            setInputEnabled(true);
+        });
+    }
+
+    function handleEvent(type, dataStr) {
+        var data;
+        try {
+            data = JSON.parse(dataStr);
+        } catch(e) {
+            return;
+        }
+
+        switch (type) {
+            case 'thinking':
+                addLogEntry(
+                    '<div class="pj-green-label text-xs flex items-center gap-2">' +
+                    '&gt; ITERATION ' + data.iteration + ' — querying LLM... ' +
+                    permissionBadge(data.permission_level) +
+                    '</div>'
+                );
+                break;
+
+            case 'tool_call':
+                var argsStr = escapeHtml(JSON.stringify(data.arguments));
+                var isElevation = data.tool_name === 'request_elevated_access';
+                var borderClass = isElevation ? 'border-neon-red/40 bg-neon-red/10' : 'border-green-500/20 bg-green-500/5';
+                addLogEntry(
+                    '<div class="border rounded p-2 ' + borderClass + '">' +
+                    '<div class="flex items-center gap-2 flex-wrap">' +
+                    permissionBadge(data.permission_level) +
+                    '<span class="text-terminal-green font-bold">&gt; ' + escapeHtml(data.tool_name) + '</span>' +
+                    '<span class="pj-green-secondary text-xs">(' + argsStr + ')</span>' +
+                    (isElevation ? '<span class="pj-red-button font-bold text-xs ml-auto">[ ELEVATION REQUEST ]</span>' : '') +
+                    '</div></div>'
+                );
+                addAuditEntry(
+                    '<span class="pj-amber-label">[TOOL]</span> ' +
+                    permissionBadge(data.permission_level) + ' ' +
+                    escapeHtml(data.tool_name) + '(' + argsStr + ')'
+                );
+                break;
+
+            case 'permission_change':
+                updatePermissionBar(data.after_value, data.after);
+                addLogEntry(
+                    '<div class="escalation-flash border border-neon-red/40 rounded p-2 bg-neon-red/10">' +
+                    '<div class="flex items-center gap-2">' +
+                    '<span class="text-neon-red font-bold text-xs">[ESCALATION]</span>' +
+                    permissionBadge(data.before) +
+                    '<span class="text-neon-red font-bold">&rarr;</span>' +
+                    permissionBadge(data.after) +
+                    '</div>' +
+                    '<div class="pj-red-label text-xs mt-1 pl-2">Reason: ' + escapeHtml(data.reason) + '</div>' +
+                    '</div>'
+                );
+                addAuditEntry(
+                    '<span class="text-neon-red font-bold">[ESCALATION]</span> ' +
+                    data.before + ' &rarr; ' + data.after +
+                    ' <span class="pj-green-secondary">(' + escapeHtml(data.reason) + ')</span>'
+                );
+                break;
+
+            case 'tool_result':
+                addLogEntry(
+                    '<div class="pl-6 text-sm border-l-2 border-green-500/20 ml-2 py-1 flex items-start gap-2">' +
+                    permissionBadge(data.permission_level) +
+                    '<pre class="whitespace-pre-wrap pj-green-body flex-1">' + escapeHtml(data.result) + '</pre>' +
+                    '</div>'
+                );
+                break;
+
+            case 'agent_message':
+                if (data.role === 'assistant') {
+                    addLogEntry(
+                        '<div class="border border-green-500/20 rounded p-3 bg-green-500/5 mt-2">' +
+                        '<div class="flex items-center gap-2 mb-1">' +
+                        '<span class="pj-green-secondary text-xs">&lt; AGENT RESPONSE:</span>' +
+                        (data.permission_level ? permissionBadge(data.permission_level) : '') +
+                        '</div>' +
+                        '<div class="text-terminal-green leading-relaxed">' + escapeHtml(data.content) + '</div></div>'
+                    );
+                }
+                break;
+
+            case 'error':
+                addLogEntry(
+                    '<div class="text-neon-red font-bold">[ERROR] ' + escapeHtml(data.message) + '</div>'
+                );
+                break;
+
+            case 'done':
+                // Show final audit summary
+                if (data.audit_log && data.audit_log.length > 0) {
+                    var elevations = data.audit_log.filter(function(e) { return e.action === 'elevation_granted'; });
+                    if (elevations.length > 0) {
+                        var summaryHtml = '<div class="border border-neon-red/20 rounded p-2 bg-neon-red/5 mt-2">' +
+                            '<div class="pj-red-button text-xs font-bold mb-1">&gt; ESCALATION SUMMARY (' + elevations.length + ' elevation' + (elevations.length > 1 ? 's' : '') + '):</div>';
+                        elevations.forEach(function(e) {
+                            summaryHtml += '<div class="pj-red-label text-xs pl-2">' + e.from_level + ' &rarr; ' + e.to_level + ' — ' + escapeHtml(e.reason) + '</div>';
+                        });
+                        summaryHtml += '<div class="text-neon-red text-xs font-bold mt-1 pl-2">FINAL LEVEL: ' + (data.final_level || 'USER') + '</div>';
+                        summaryHtml += '</div>';
+                        addLogEntry(summaryHtml);
+                    }
+                }
+                addLogEntry(
+                    '<div class="pj-green-label text-xs mt-2">' +
+                    '&gt; AGENT LOOP COMPLETE — AWAITING INPUT...</div>'
+                );
+                setInputEnabled(true);
+                break;
+        }
+    }
+
+    // Audit panel toggle
+    auditToggle.addEventListener('click', function() {
+        auditOpen = !auditOpen;
+        auditContent.classList.toggle('hidden', !auditOpen);
+        auditChevron.style.transform = auditOpen ? 'rotate(180deg)' : '';
+    });
+
+    // Form submit
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var text = input.value.trim();
+        if (!text || isRunning) return;
+        input.value = '';
+        runAgent(text);
+    });
+
+    // Scenario buttons
+    document.querySelectorAll('.scenario-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var prompt = btn.getAttribute('data-prompt');
+            if (prompt && !isRunning) {
+                input.value = '';
+                runAgent(prompt);
+            }
+        });
+    });
+
+    // Reset button
+    resetBtn.addEventListener('click', function() {
+        fetch(API_BASE + '/api/reset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+        }).then(function() {
+            conversation.innerHTML =
+                '<div class="pj-green-secondary text-xs mb-4">' +
+                '&gt; STATE RESET — AGENT RE-INITIALIZED<br>' +
+                '&gt; STARTING LEVEL: <span class="text-terminal-green font-bold">USER</span> (3 tools)<br>' +
+                '&gt; AWAITING INPUT...</div>';
+            currentLevel = 0;
+            updatePermissionBar(0, 'USER');
+            auditEntries = [];
+            auditContent.innerHTML = '';
+            auditCount.textContent = '0';
+            auditPanel.classList.add('hidden');
+            setInputEnabled(true);
+            if (window.showToast) window.showToast('State reset', 'success');
+        });
+    });
+
+    input.focus();
+})();
+</script>
+{% endblock %}

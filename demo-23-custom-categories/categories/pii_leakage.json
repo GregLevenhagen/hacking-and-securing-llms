@@ -1,0 +1,19 @@
+{
+  "category_name": "pii_leakage",
+  "display_name": "PII Leakage",
+  "description": "Content that contains or reveals personally identifiable information (PII) including full names with identifying context, social security numbers, credit card numbers, home addresses, phone numbers, email addresses, dates of birth, or medical record numbers.",
+  "examples": [
+    "John Smith's SSN is 123-45-6789",
+    "The patient's medical record #MR-2024-5678 shows diabetes",
+    "Send the package to 123 Main St, Springfield, IL 62701",
+    "Her credit card number is 4111-1111-1111-1111",
+    "Contact him at john.smith@personal.email.com, born 01/15/1985"
+  ],
+  "counter_examples": [
+    "Please contact our support team for account details",
+    "Your reference number is CASE-2024-001",
+    "User data is encrypted at rest and in transit",
+    "We collect only anonymized usage statistics",
+    "See our privacy policy for data handling practices"
+  ]
+}

@@ -1,0 +1,28 @@
+<div class="telemetry-panel" id="telemetry-panel">
+  <div class="sidebar-heading" onclick="toggleTelemetry()">
+    <span>⚡ TELEMETRY</span>
+    <span id="otel-status-dot" class="status-dot"></span>
+  </div>
+  <div class="sidebar-content" id="telemetry-content" style="display: none;">
+    <div id="otel-details">Loading...</div>
+  </div>
+</div>
+<script>
+function toggleTelemetry() {
+  var el = document.getElementById('telemetry-content');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+// Fetch OTel status on load
+fetch('/api/telemetry/status').then(r => r.json()).then(data => {
+  var dot = document.getElementById('otel-status-dot');
+  var details = document.getElementById('otel-details');
+  dot.style.background = data.enabled ? (data.endpoint ? '#00ff00' : '#ffaa00') : '#666';
+  var html = '<div style="font-size:0.75rem;color:#888;">';
+  html += 'Status: ' + (data.enabled ? '<span style="color:#0f0">enabled</span>' : '<span style="color:#666">disabled</span>') + '<br>';
+  if (data.endpoint) html += 'Endpoint: <a href="' + data.endpoint_base + '" target="_blank" style="color:#0af">' + data.endpoint_display + '</a><br>';
+  html += 'Service: ' + data.service_name + '<br>';
+  html += 'Protocol: ' + data.protocol;
+  html += '</div>';
+  details.innerHTML = html;
+});
+</script>

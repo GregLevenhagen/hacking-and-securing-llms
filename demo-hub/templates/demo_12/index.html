@@ -1,0 +1,290 @@
+{% extends "hub_base.html" %}
+
+{% block title %}JAILBREAKING // DEMO 12{% endblock %}
+
+{% block demo_content %}
+<div class="h-full flex flex-col">
+
+    <div class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="text-neon-red text-sm tracking-wider font-bold">
+            [ JAILBREAKING // DEMO 12 ]
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="run-all-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all font-bold"
+            >RUN ALL TECHNIQUES</button>
+            <button id="reset-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all"
+            >RESET</button>
+        </div>
+    </div>
+
+    <!-- Safety system prompt reference -->
+    <div class="border-b border-green-500/20 px-6 py-2 shrink-0">
+        <div class="pj-green-label text-xs tracking-wider mb-1">&gt; SAFETY SYSTEM PROMPT:</div>
+        <div class="pj-green-secondary text-xs max-h-16 overflow-y-auto scrollbar-thin font-mono leading-relaxed">
+            {{ system_prompt[:300] }}...
+        </div>
+    </div>
+
+    <!-- Technique buttons -->
+    <div class="border-b border-green-500/20 px-6 py-3 shrink-0">
+        <div class="pj-green-label text-xs tracking-wider mb-2">&gt; JAILBREAK TECHNIQUES ({{ techniques|length }}):</div>
+        <div class="flex flex-wrap gap-2">
+            {% for tech in techniques %}
+            <button class="technique-btn px-3 py-1.5 text-xs border border-terminal-amber/30 text-terminal-amber hover:border-terminal-amber/60 hover:bg-terminal-amber/10 hover:shadow-[0_0_10px_rgba(255,176,0,0.15)] rounded transition-all font-bold"
+                data-index="{{ loop.index0 }}" title="{{ tech.description }}">
+                {{ tech.name }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Results panel -->
+    <div id="results" class="flex-1 overflow-y-auto px-6 py-4 space-y-2 scrollbar-thin">
+        <div class="pj-green-secondary text-xs">
+            &gt; {{ techniques|length }} JAILBREAK TECHNIQUES LOADED<br>
+            &gt; SAFETY GUARDRAILS ACTIVE<br>
+            &gt; CLICK A TECHNIQUE OR "RUN ALL" TO BEGIN...
+        </div>
+    </div>
+
+    <!-- Scoreboard -->
+    <div id="scoreboard" class="border-t border-green-500/30 px-6 py-3 shrink-0" style="display:none;">
+        <div class="flex items-center justify-between">
+            <div class="text-xs font-bold tracking-wider">
+                <span class="pj-green-label">&gt; SCOREBOARD:</span>
+                <span id="score-bypassed" class="text-neon-red ml-2">0 BYPASSED</span>
+                <span class="pj-green-secondary mx-1">/</span>
+                <span id="score-blocked" class="text-terminal-green">0 BLOCKED</span>
+                <span class="pj-green-secondary mx-1">/</span>
+                <span id="score-total" class="pj-green-secondary">0 TOTAL</span>
+            </div>
+            <div id="score-bar" class="flex h-2 w-48 rounded overflow-hidden bg-green-500/10">
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; JAILBREAK CONSOLE: ACTIVE // DEMO 12</span>
+<span class="float-right">JAILBREAKING // DEMO HUB</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    var results = document.getElementById('results');
+    var runAllBtn = document.getElementById('run-all-btn');
+    var resetBtn = document.getElementById('reset-btn');
+    var scoreboard = document.getElementById('scoreboard');
+    var techniqueBtns = document.querySelectorAll('.technique-btn');
+    var isRunning = false;
+    var API_BASE = '/demo-12';
+
+    // Scoreboard state
+    var bypassed = 0;
+    var blocked = 0;
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function addEntry(html) {
+        var el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        results.appendChild(el);
+        results.scrollTop = results.scrollHeight;
+    }
+
+    function updateScoreboard() {
+        var total = bypassed + blocked;
+        if (total === 0) { scoreboard.style.display = 'none'; return; }
+        scoreboard.style.display = 'block';
+        document.getElementById('score-bypassed').textContent = bypassed + ' BYPASSED';
+        document.getElementById('score-blocked').textContent = blocked + ' BLOCKED';
+        document.getElementById('score-total').textContent = total + ' TOTAL';
+
+        // Update bar
+        var bar = document.getElementById('score-bar');
+        var bypassPct = (bypassed / total * 100).toFixed(1);
+        var blockPct = (blocked / total * 100).toFixed(1);
+        bar.innerHTML =
+            '<div class="h-full bg-neon-red transition-all duration-500" style="width:' + bypassPct + '%"></div>' +
+            '<div class="h-full bg-terminal-green transition-all duration-500" style="width:' + blockPct + '%"></div>';
+    }
+
+    function sseStream(url, body, handlers) {
+        isRunning = true;
+        setButtonStates(true);
+        fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) { isRunning = false; setButtonStates(false); return; }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    var eventType = '', eventData = '';
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) eventType = line.slice(7).trim();
+                        else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                var data; try { data = JSON.parse(eventData); } catch(e) { continue; }
+                                if (handlers[eventType]) handlers[eventType](data);
+                                eventType = ''; eventData = '';
+                            }
+                        }
+                    }
+                    processChunk();
+                });
+            }
+            processChunk();
+        }).catch(function(err) {
+            addEntry('<div class="text-neon-red">[ERROR] ' + escapeHtml(err.message) + '</div>');
+            isRunning = false;
+            setButtonStates(false);
+        });
+    }
+
+    function setButtonStates(disabled) {
+        runAllBtn.disabled = disabled;
+        runAllBtn.style.opacity = disabled ? '0.4' : '1';
+        for (var i = 0; i < techniqueBtns.length; i++) {
+            techniqueBtns[i].disabled = disabled;
+            techniqueBtns[i].style.opacity = disabled ? '0.4' : '1';
+        }
+    }
+
+    function verdictBadge(data) {
+        if (data.bypassed) {
+            return '<span class="inline-block px-2 py-0.5 text-xs font-bold rounded border border-neon-red/60 text-neon-red bg-neon-red/10 shadow-[0_0_8px_rgba(255,0,64,0.2)]">BYPASSED</span>';
+        }
+        return '<span class="inline-block px-2 py-0.5 text-xs font-bold rounded border border-terminal-green/60 text-terminal-green bg-terminal-green/10 shadow-[0_0_8px_rgba(0,255,0,0.2)]">BLOCKED</span>';
+    }
+
+    function makeResultHandlers() {
+        var currentStreamEl = null;
+        return {
+            technique_start: function(data) {
+                addEntry(
+                    '<div class="border border-terminal-amber/30 rounded p-2 bg-terminal-amber/5 mt-2">' +
+                    '<div class="text-terminal-amber font-bold text-xs">[' + (data.index + 1) + '] ' + escapeHtml(data.name) + '</div>' +
+                    '<div class="pj-amber-body text-xs mt-0.5 italic">' + escapeHtml(data.description || '') + '</div>' +
+                    '<div class="pj-amber-body text-xs mt-1">' + escapeHtml(data.prompt).substring(0, 200) + '...</div></div>'
+                );
+                var el = document.createElement('div');
+                el.className = 'text-terminal-green/80 text-sm pl-4 streaming-target max-h-40 overflow-y-auto scrollbar-thin';
+                results.appendChild(el);
+                currentStreamEl = el;
+            },
+            token: function(data) {
+                if (currentStreamEl) {
+                    currentStreamEl.textContent += data.token;
+                    results.scrollTop = results.scrollHeight;
+                }
+            },
+            technique_result: function(data) {
+                currentStreamEl = null;
+                var color = data.bypassed ? 'neon-red' : 'terminal-green';
+
+                if (data.bypassed) {
+                    bypassed++;
+                    var violations = (data.violations || []).map(escapeHtml).join(', ');
+                    addEntry(
+                        '<div class="pl-4 mt-1 flex items-center gap-2 flex-wrap">' +
+                        verdictBadge(data) +
+                        '<span class="text-neon-red text-xs">Violations: ' + violations + '</span>' +
+                        '<span class="pj-green-secondary text-xs">Confidence: ' + (data.confidence * 100).toFixed(0) + '%</span>' +
+                        '</div>'
+                    );
+                } else {
+                    blocked++;
+                    addEntry(
+                        '<div class="pl-4 mt-1 flex items-center gap-2 flex-wrap">' +
+                        verdictBadge(data) +
+                        (data.refused ? '<span class="text-terminal-green text-xs">Model refused the request</span>' : '') +
+                        '<span class="pj-green-secondary text-xs">Confidence: ' + (data.confidence * 100).toFixed(0) + '%</span>' +
+                        '</div>'
+                    );
+                }
+                updateScoreboard();
+            },
+            error: function(data) {
+                addEntry('<div class="text-neon-red">[ERROR] ' + escapeHtml(data.message) + '</div>');
+            },
+            done: function() {
+                isRunning = false;
+                setButtonStates(false);
+            },
+        };
+    }
+
+    // Run all techniques
+    runAllBtn.addEventListener('click', function() {
+        if (isRunning) return;
+        bypassed = 0;
+        blocked = 0;
+        updateScoreboard();
+        addEntry('<div class="text-neon-red font-bold text-xs tracking-wider mt-2">' +
+            String.fromCharCode(9552).repeat(3) + ' RUNNING ALL JAILBREAK TECHNIQUES ' + String.fromCharCode(9552).repeat(3) + '</div>');
+
+        var handlers = makeResultHandlers();
+        var origDone = handlers.done;
+        handlers.done = function() {
+            addEntry(
+                '<div class="border border-' + (bypassed > 0 ? 'neon-red' : 'terminal-green') + '/40 rounded p-3 bg-' + (bypassed > 0 ? 'neon-red' : 'terminal-green') + '/5 mt-2">' +
+                '<div class="text-' + (bypassed > 0 ? 'neon-red' : 'terminal-green') + ' font-bold text-xs tracking-wider">' +
+                String.fromCharCode(9552).repeat(3) + ' ALL TECHNIQUES COMPLETE ' + String.fromCharCode(9552).repeat(3) + '</div>' +
+                '<div class="text-' + (bypassed > 0 ? 'neon-red' : 'terminal-green') + ' text-xs mt-1">' +
+                '&gt; ' + bypassed + '/' + (bypassed + blocked) + ' techniques bypassed safety guardrails</div>' +
+                '</div>'
+            );
+            origDone();
+        };
+
+        sseStream(API_BASE + '/api/run-all', {}, handlers);
+    });
+
+    // Individual technique buttons
+    for (var i = 0; i < techniqueBtns.length; i++) {
+        (function(btn) {
+            btn.addEventListener('click', function() {
+                if (isRunning) return;
+                var idx = parseInt(btn.getAttribute('data-index'), 10);
+                addEntry('<div class="text-terminal-amber font-bold text-xs tracking-wider mt-2">&gt; LAUNCHING TECHNIQUE: ' + escapeHtml(btn.textContent.trim()) + '</div>');
+                sseStream(API_BASE + '/api/attack', {index: idx}, makeResultHandlers());
+            });
+        })(techniqueBtns[i]);
+    }
+
+    // Reset
+    resetBtn.addEventListener('click', function() {
+        fetch(API_BASE + '/api/reset', {method: 'POST', headers: {'Content-Type': 'application/json'}}).then(function() {
+            results.innerHTML = '<div class="pj-green-secondary text-xs">&gt; STATE RESET<br>&gt; AWAITING INPUT...</div>';
+            bypassed = 0;
+            blocked = 0;
+            updateScoreboard();
+            isRunning = false;
+            setButtonStates(false);
+            if (window.showToast) window.showToast('State reset', 'success');
+        });
+    });
+
+})();
+</script>
+{% endblock %}

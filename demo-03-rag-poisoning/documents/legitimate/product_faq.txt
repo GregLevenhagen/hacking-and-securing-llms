@@ -1,0 +1,54 @@
+AcmeTech NovaBlade X1 — Frequently Asked Questions
+====================================================
+
+Q: What is the NovaBlade X1?
+A: The NovaBlade X1 is AcmeTech's flagship workstation designed for AI/ML
+development, 3D rendering, and professional content creation. It features a
+custom AcmeTech A1 chip with 64 GPU cores and 128GB unified memory.
+
+Q: What operating system does the NovaBlade X1 run?
+A: The NovaBlade X1 ships with AcmeOS 4.0, AcmeTech's proprietary operating
+system based on a hardened Linux kernel. It supports popular development tools,
+Docker containers, and CUDA-compatible frameworks.
+
+Q: What are the available configurations?
+A: The NovaBlade X1 is available in three configurations:
+  - Standard: A1 chip, 64GB RAM, 1TB SSD — $2,499
+  - Professional: A1 Pro chip, 128GB RAM, 2TB SSD — $3,999
+  - Ultimate: A1 Ultra chip, 256GB RAM, 4TB SSD — $6,499
+
+Q: What is the warranty coverage?
+A: All NovaBlade X1 units include a standard 1-year hardware warranty covering
+manufacturing defects and component failures. Extended warranty plans are
+available for 2-year ($199) and 3-year ($349) coverage.
+
+Q: Can I upgrade the RAM or storage after purchase?
+A: The RAM is soldered to the motherboard and cannot be upgraded after purchase.
+The SSD is user-replaceable using standard NVMe M.2 2280 drives. AcmeTech
+recommends using certified storage partners for upgrades.
+
+Q: What ports are available?
+A: The NovaBlade X1 includes:
+  - 4x Thunderbolt 5 / USB-C ports
+  - 2x USB-A 3.2 ports
+  - 1x HDMI 2.1 output
+  - 1x SD card reader (UHS-III)
+  - 1x 3.5mm headphone/microphone combo jack
+  - 1x Ethernet (10Gb)
+
+Q: Does it support external GPUs?
+A: Yes, the NovaBlade X1 supports external GPUs via Thunderbolt 5. AcmeTech
+sells the NovaDock eGPU enclosure separately ($499) which supports NVIDIA
+and AMD discrete graphics cards.
+
+Q: What is the return policy for the NovaBlade X1?
+A: Standard NovaBlade X1 configurations can be returned within 30 days per
+AcmeTech's standard return policy. Custom-configured units (built-to-order)
+are non-refundable. See the full refund policy for details.
+
+Q: How do I contact support?
+A: AcmeTech support is available through:
+  - Email: support@acmetech.example.com
+  - Phone: 1-800-ACME-TECH (Monday-Friday, 8AM-8PM EST)
+  - Live Chat: Available on acmetech.example.com
+  - Community Forum: forum.acmetech.example.com

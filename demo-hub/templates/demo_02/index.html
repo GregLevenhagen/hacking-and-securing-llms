@@ -1,0 +1,161 @@
+{% extends "hub_base.html" %}
+
+{% block title %}INDIRECT INJECTION // DEMO 02{% endblock %}
+
+{% block demo_content %}
+<div class="h-full flex flex-col">
+
+    <div class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="text-neon-cyan text-sm tracking-wider font-bold">
+            [ INDIRECT PROMPT INJECTION // DEMO 02 ]
+        </div>
+        <button id="reset-btn"
+            class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all"
+        >RESET</button>
+    </div>
+
+    <!-- Page selector -->
+    <div class="border-b border-green-500/20 px-6 py-3 shrink-0">
+        <div class="pj-green-label text-xs mb-2 tracking-wider">&gt; SELECT HTML PAGE TO ANALYZE:</div>
+        <div class="flex flex-wrap gap-2">
+            {% for page in pages %}
+            <button class="page-btn px-3 py-1.5 text-xs border rounded transition-all font-mono
+                {% if page.poisoned %}
+                    border-neon-red/30 text-neon-red/70 hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_12px_#ff004033]
+                {% else %}
+                    border-terminal-green/30 text-terminal-green/70 hover:text-terminal-green hover:border-terminal-green/60 hover:shadow-[0_0_12px_#00ff0033]
+                {% endif %}
+                "
+                data-page="{{ page.name }}"
+            >&gt; {{ page.label }}</button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Two-panel view -->
+    <div class="flex-1 flex overflow-hidden min-h-0">
+        <div class="w-1/2 flex flex-col border-r border-green-500/20">
+            <div class="px-4 py-2 border-b border-terminal-amber/30 bg-terminal-amber/5 shrink-0 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-terminal-amber"></div>
+                <span class="text-terminal-amber font-bold text-sm tracking-wider">[ WHAT HUMANS SEE ]</span>
+            </div>
+            <div id="human-panel" class="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin">
+                <div class="pj-green-muted text-xs">&gt; SELECT A PAGE ABOVE...</div>
+            </div>
+        </div>
+        <div class="w-1/2 flex flex-col">
+            <div class="px-4 py-2 border-b border-neon-red/30 bg-neon-red/5 shrink-0 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-neon-red"></div>
+                <span class="text-neon-red font-bold text-sm tracking-wider">[ WHAT THE LLM SEES ]</span>
+            </div>
+            <div id="llm-panel" class="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin">
+                <div class="pj-green-muted text-xs">&gt; SELECT A PAGE ABOVE...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary panel -->
+    <div class="border-t border-green-500/20 px-6 py-3 shrink-0 max-h-32 overflow-y-auto">
+        <div class="pj-green-label text-xs tracking-wider mb-1">&gt; LLM SUMMARY:</div>
+        <div id="summary-panel" class="text-terminal-green text-sm"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; INJECTION ANALYSIS: ACTIVE // DEMO 02</span>
+<span class="float-right">INDIRECT INJECTION // DEMO HUB</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    var humanPanel = document.getElementById('human-panel');
+    var llmPanel = document.getElementById('llm-panel');
+    var summaryPanel = document.getElementById('summary-panel');
+    var isRunning = false;
+    var API_BASE = '/demo-02';
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function analyzePage(pageName) {
+        if (isRunning) return;
+        isRunning = true;
+        humanPanel.innerHTML = '<div class="pj-amber-secondary text-xs">&gt; LOADING...</div>';
+        llmPanel.innerHTML = '<div class="pj-red-secondary text-xs">&gt; EXTRACTING...</div>';
+        summaryPanel.textContent = '';
+
+        fetch(API_BASE + '/api/analyze', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({page_name: pageName}),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) { isRunning = false; return; }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    var eventType = '', eventData = '';
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) eventType = line.slice(7).trim();
+                        else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                var data;
+                                try { data = JSON.parse(eventData); } catch(e) { continue; }
+                                if (eventType === 'human_view') {
+                                    humanPanel.innerHTML = '<pre class="text-terminal-amber/80 text-xs whitespace-pre-wrap leading-relaxed">' + escapeHtml(data.text) + '</pre>';
+                                } else if (eventType === 'llm_view') {
+                                    var cls = data.has_injection ? 'text-neon-red/80' : 'text-green-500/80';
+                                    llmPanel.innerHTML = '<pre class="' + cls + ' text-xs whitespace-pre-wrap leading-relaxed">' + escapeHtml(data.text) + '</pre>';
+                                    if (data.has_injection) {
+                                        llmPanel.innerHTML += '<div class="text-neon-red font-bold text-xs mt-2 neon-text-red">[ HIDDEN INJECTION DETECTED ]</div>';
+                                    }
+                                } else if (eventType === 'summary_token') {
+                                    summaryPanel.textContent += data.token;
+                                } else if (eventType === 'error') {
+                                    summaryPanel.innerHTML = '<span class="text-neon-red">[ERROR] ' + escapeHtml(data.message) + '</span>';
+                                } else if (eventType === 'done') {
+                                    isRunning = false;
+                                }
+                                eventType = ''; eventData = '';
+                            }
+                        }
+                    }
+                    processChunk();
+                });
+            }
+            processChunk();
+        }).catch(function(err) {
+            summaryPanel.innerHTML = '<span class="text-neon-red">[ERROR] ' + escapeHtml(err.message) + '</span>';
+            isRunning = false;
+        });
+    }
+
+    document.querySelectorAll('.page-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var page = btn.getAttribute('data-page');
+            if (page) analyzePage(page);
+        });
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        humanPanel.innerHTML = '<div class="pj-green-muted text-xs">&gt; SELECT A PAGE ABOVE...</div>';
+        llmPanel.innerHTML = '<div class="pj-green-muted text-xs">&gt; SELECT A PAGE ABOVE...</div>';
+        summaryPanel.textContent = '';
+        isRunning = false;
+    });
+})();
+</script>
+{% endblock %}

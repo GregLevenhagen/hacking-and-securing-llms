@@ -1,0 +1,32 @@
+[
+  {
+    "id": "tech-01",
+    "topic": "technology",
+    "title": "Quantum Computing Progress in 2024",
+    "content": "IBM announced the Heron quantum processor with 133 qubits in December 2023. Google's Willow chip achieved quantum error correction milestones in 2024, demonstrating below-threshold error rates for the first time. The global quantum computing market was valued at $1.1 billion in 2023. IBM plans to release a 100,000-qubit system by 2033. Current quantum computers operate at temperatures near absolute zero (-273.15°C). The leading quantum programming frameworks are Qiskit (IBM), Cirq (Google), and Amazon Braket."
+  },
+  {
+    "id": "health-01",
+    "topic": "health",
+    "title": "mRNA Vaccine Technology Advances",
+    "content": "Moderna and BioNTech pioneered mRNA vaccine technology for COVID-19 in 2020. By 2024, mRNA vaccines were being developed for influenza, RSV, and cancer treatment. The technology works by instructing cells to produce a specific protein that triggers an immune response. Clinical trials for mRNA-based cancer vaccines showed 44% reduced risk of recurrence in melanoma patients. The global mRNA therapeutics market is projected to reach $128 billion by 2030. Storage requirements have improved from -70°C to standard refrigeration for newer formulations."
+  },
+  {
+    "id": "finance-01",
+    "topic": "finance",
+    "title": "Federal Reserve Interest Rate Policy 2024",
+    "content": "The Federal Reserve held the federal funds rate at 5.25-5.50% through Q1 2024, the highest level in 22 years. The Fed began cutting rates in September 2024, reducing by 25 basis points. Inflation fell from 9.1% peak in June 2022 to 2.9% by July 2024. The unemployment rate remained below 4% throughout 2024. The S&P 500 gained over 20% in 2024. The 10-year Treasury yield fluctuated between 3.8% and 4.7% during 2024."
+  },
+  {
+    "id": "science-01",
+    "topic": "science",
+    "title": "James Webb Space Telescope Discoveries",
+    "content": "The James Webb Space Telescope (JWST) launched on December 25, 2021, and began science operations in July 2022. It orbits the L2 Lagrange point, approximately 1.5 million kilometers from Earth. JWST has detected the most distant known galaxies, dating back to within 300 million years of the Big Bang. The telescope's primary mirror is 6.5 meters in diameter, composed of 18 gold-coated beryllium segments. Its infrared instruments can detect temperatures as low as 50 Kelvin. JWST has also captured detailed images of exoplanet atmospheres, detecting water vapor and CO2."
+  },
+  {
+    "id": "history-01",
+    "topic": "history",
+    "title": "The Construction of the Panama Canal",
+    "content": "The Panama Canal was built between 1904 and 1914 under the direction of the United States Army Corps of Engineers. France had previously attempted construction from 1881 to 1889 under Ferdinand de Lesseps, but abandoned the project after approximately 22,000 worker deaths. The canal is 82 kilometers (51 miles) long and uses a system of locks to raise ships 26 meters (85 feet) above sea level. The Gatun Lake, created by damming the Chagres River, was the largest man-made lake in the world at the time. The canal was transferred to Panama on December 31, 1999, under the Torrijos-Carter Treaties signed in 1977."
+  }
+]

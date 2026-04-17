@@ -1,0 +1,452 @@
+{% extends "hub_base.html" %}
+
+{% block title %}MODEL PROBING // DEMO 18{% endblock %}
+
+{% block demo_content %}
+<div class="h-full flex flex-col">
+
+    <!-- Header bar -->
+    <div class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="text-neon-cyan text-sm tracking-wider font-bold">
+            [ MODEL PROBING // DEMO 18 ]
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="full-scan-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all font-bold"
+            >FULL SCAN</button>
+            <button id="reset-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all"
+            >RESET</button>
+        </div>
+    </div>
+
+    <!-- Technique buttons -->
+    <div class="border-b border-green-500/20 px-6 py-3 shrink-0">
+        <div class="pj-green-label text-xs tracking-wider mb-2">&gt; PROBING TECHNIQUES:</div>
+        <div class="flex flex-wrap gap-2">
+            {% for tech in techniques %}
+            <button class="technique-btn px-3 py-1.5 text-xs border border-terminal-amber/30 text-terminal-amber hover:border-terminal-amber/60 hover:shadow-[0_0_10px_rgba(255,176,0,0.2)] rounded transition-all font-bold"
+                data-technique-id="{{ tech.id }}"
+                title="{{ tech.description }}">
+                {{ tech.name | upper }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Results panel -->
+    <div id="results" class="flex-1 overflow-y-auto px-6 py-4 space-y-2 scrollbar-thin">
+        <div class="pj-green-secondary text-xs">
+            &gt; {{ techniques | length }} PROBING TECHNIQUES LOADED<br>
+            &gt; SELECT A TECHNIQUE OR CLICK "FULL SCAN" TO PROBE ALL...
+        </div>
+    </div>
+
+    <!-- Profile summary panel (hidden until populated) -->
+    <div id="profile-panel" class="border-t border-neon-cyan/30 bg-neon-cyan/5 px-6 py-4 shrink-0 hidden">
+        <div class="flex items-center gap-2 mb-2">
+            <div class="w-2 h-2 rounded-full bg-neon-cyan neon-glow-cyan"></div>
+            <span class="text-neon-cyan font-bold text-xs tracking-[0.2em]">[ BEHAVIOR PROFILE ]</span>
+        </div>
+        <div id="profile-content" class="text-xs font-mono space-y-1"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; PROBING CONSOLE: ACTIVE // DEMO 18</span>
+<span class="float-right">MODEL PROBING // DEMO HUB</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    var results = document.getElementById('results');
+    var profilePanel = document.getElementById('profile-panel');
+    var profileContent = document.getElementById('profile-content');
+    var fullScanBtn = document.getElementById('full-scan-btn');
+    var resetBtn = document.getElementById('reset-btn');
+    var isRunning = false;
+    var API_BASE = '/demo-18';
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function addEntry(html) {
+        var el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        results.appendChild(el);
+        results.scrollTop = results.scrollHeight;
+    }
+
+    function sseStream(url, body, handlers) {
+        isRunning = true;
+        setButtonStates(true);
+        fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) { isRunning = false; setButtonStates(false); return; }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    var eventType = '', eventData = '';
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) eventType = line.slice(7).trim();
+                        else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                var data; try { data = JSON.parse(eventData); } catch(e) { continue; }
+                                if (handlers[eventType]) handlers[eventType](data);
+                                eventType = ''; eventData = '';
+                            }
+                        }
+                    }
+                    processChunk();
+                });
+            }
+            processChunk();
+        }).catch(function(err) {
+            addEntry('<div class="text-neon-red">[ERROR] ' + escapeHtml(err.message) + '</div>');
+            isRunning = false;
+            setButtonStates(false);
+        });
+    }
+
+    function setButtonStates(disabled) {
+        fullScanBtn.disabled = disabled;
+        fullScanBtn.style.opacity = disabled ? '0.4' : '1';
+        document.querySelectorAll('.technique-btn').forEach(function(btn) {
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.4' : '1';
+        });
+    }
+
+    // Track streaming response elements per technique+probe
+    var streamEls = {};
+
+    function getStreamKey(techId, probeIdx) {
+        return techId + '_' + probeIdx;
+    }
+
+    function makeProbeHandlers() {
+        return {
+            probe_start: function(data) {
+                addEntry(
+                    '<div class="border border-terminal-amber/30 rounded p-3 bg-terminal-amber/5 mt-3">' +
+                    '<div class="text-terminal-amber font-bold text-xs tracking-[0.15em]">' +
+                    '[ ' + escapeHtml(data.technique_name) + ' ]</div>' +
+                    '<div class="pj-amber-body text-xs mt-1">' + escapeHtml(data.description) + '</div>' +
+                    '<div class="pj-green-label text-xs mt-1">' + data.probe_count + ' probes</div>' +
+                    '</div>'
+                );
+            },
+            scan_progress: function(data) {
+                addEntry(
+                    '<div class="pj-green-label text-xs mt-1">' +
+                    '&gt; SCAN PROGRESS: ' + (data.current_technique + 1) + '/' + data.total_techniques +
+                    ' — ' + escapeHtml(data.technique_name) + '</div>'
+                );
+            },
+            probe_query: function(data) {
+                addEntry(
+                    '<div class="pl-4 mt-2">' +
+                    '<span class="text-terminal-amber text-xs font-bold">[' + (data.probe_index + 1) + ']</span> ' +
+                    '<span class="pj-amber-body text-xs">' + escapeHtml(data.probe) + '</span>' +
+                    '</div>'
+                );
+                var el = document.createElement('div');
+                el.className = 'text-terminal-green/80 text-xs pl-8 mt-1 streaming-target';
+                results.appendChild(el);
+                streamEls[getStreamKey(data.technique_id, data.probe_index)] = el;
+            },
+            probe_response: function(data) {
+                var key = getStreamKey(data.technique_id, data.probe_index);
+                var el = streamEls[key];
+                if (el) {
+                    el.textContent += data.token;
+                    results.scrollTop = results.scrollHeight;
+                }
+            },
+            probe_analysis: function(data) {
+                renderAnalysis(data.technique_id, data.technique_name, data.analysis);
+            },
+            profile_result: function(data) {
+                renderProfile(data.profile);
+            },
+            error: function(data) {
+                addEntry('<div class="text-neon-red">[ERROR] ' + escapeHtml(data.message) + '</div>');
+            },
+            done: function() {
+                addEntry('<div class="pj-green-label text-xs mt-2">&gt; COMPLETE</div>');
+                isRunning = false;
+                setButtonStates(false);
+                streamEls = {};
+            },
+        };
+    }
+
+    // ── Technique-specific analysis rendering ──
+
+    function renderAnalysis(techId, techName, analysis) {
+        var html = '<div class="border border-neon-cyan/20 rounded p-3 bg-neon-cyan/5 mt-2">';
+        html += '<div class="text-neon-cyan font-bold text-xs tracking-wider mb-2">ANALYSIS: ' + escapeHtml(techName) + '</div>';
+
+        if (techId === 'boundary_probing') {
+            html += renderBoundaryAnalysis(analysis);
+        } else if (techId === 'membership_inference') {
+            html += renderMembershipAnalysis(analysis);
+        } else if (techId === 'system_prompt_recovery') {
+            html += renderSystemPromptAnalysis(analysis);
+        } else if (techId === 'temperature_fingerprinting') {
+            html += renderTemperatureAnalysis(analysis);
+        } else if (techId === 'behavior_cloning') {
+            html += renderBehaviorAnalysis(analysis);
+        } else if (techId === 'capability_mapping') {
+            html += renderCapabilityAnalysis(analysis);
+        }
+
+        html += '</div>';
+        addEntry(html);
+    }
+
+    function renderBoundaryAnalysis(a) {
+        var idx = a.refusal_boundary_index;
+        var total = a.total_probes || 8;
+        var html = '<div class="mb-2 pj-green-body text-xs">Refusal boundary: ';
+        if (idx === -1) {
+            html += '<span class="text-neon-red font-bold">NONE (model answered all probes)</span>';
+        } else {
+            html += '<span class="text-neon-cyan font-bold">Probe #' + (idx + 1) + '</span>';
+        }
+        html += ' | Refusals: ' + a.refusal_count + '/' + total + '</div>';
+
+        // Gradient bar
+        html += '<div class="flex gap-0.5 mt-1">';
+        for (var i = 0; i < total; i++) {
+            var result = (a.results && a.results[i]) ? a.results[i] : null;
+            var refused = result ? result.refused : false;
+            var fraction = i / (total - 1);
+            var r = Math.round(255 * fraction);
+            var g = Math.round(255 * (1 - fraction));
+            var bgColor = refused
+                ? 'rgba(' + r + ',' + g + ',0,0.8)'
+                : 'rgba(' + r + ',' + g + ',0,0.25)';
+            var border = refused ? '2px solid #ff0040' : '1px solid rgba(255,255,255,0.1)';
+            html += '<div style="flex:1;height:24px;background:' + bgColor + ';border:' + border + ';border-radius:2px;" ' +
+                'title="Probe ' + (i+1) + ': ' + (refused ? 'REFUSED' : 'answered') + '"></div>';
+        }
+        html += '</div>';
+        html += '<div class="flex justify-between text-xs mt-0.5"><span class="pj-green-muted">safe</span><span class="text-neon-red/60">harmful</span></div>';
+        return html;
+    }
+
+    function renderMembershipAnalysis(a) {
+        var html = '<div class="pj-green-body text-xs mb-2">' +
+            'Known data score: <span class="text-neon-cyan font-bold">' + (a.known_data_score * 100).toFixed(0) + '%</span> | ' +
+            'Known completed: ' + a.known_correct + '/' + a.known_total + ' | ' +
+            'Fake rejected: ' + a.fake_rejected + '/' + a.fake_total +
+            '</div>';
+
+        // Per-probe confidence bars
+        if (a.results) {
+            html += '<div class="space-y-1 mt-2">';
+            for (var i = 0; i < a.results.length; i++) {
+                var r = a.results[i];
+                var isFake = r.is_fake;
+                var correct = isFake ? r.correctly_rejected : r.correctly_completed;
+                var barColor = correct ? '#00fff0' : '#ff0040';
+                var label = isFake ? '(fake)' : '(known)';
+                var statusText = correct ? (isFake ? 'rejected' : 'completed') : (isFake ? 'fooled' : 'missed');
+                html += '<div class="flex items-center gap-2">' +
+                    '<span class="pj-green-muted text-xs w-8">' + label + '</span>' +
+                    '<div style="flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;">' +
+                    '<div style="width:' + (correct ? '100' : '30') + '%;height:100%;background:' + barColor + ';border-radius:2px;"></div>' +
+                    '</div>' +
+                    '<span class="text-xs" style="color:' + barColor + ';">' + statusText + '</span>' +
+                    '</div>';
+            }
+            html += '</div>';
+        }
+        return html;
+    }
+
+    function renderSystemPromptAnalysis(a) {
+        var html = '<div class="pj-green-body text-xs mb-2">' +
+            'Fragments recovered: <span class="text-neon-cyan font-bold">' + a.total_fragments + '</span> | ' +
+            'Disclosure score: ' + (a.disclosure_score * 100).toFixed(0) + '%' +
+            '</div>';
+
+        if (a.fragments && a.fragments.length > 0) {
+            html += '<div class="space-y-1 mt-2">';
+            for (var i = 0; i < a.fragments.length; i++) {
+                html += '<div class="border border-neon-red/20 rounded px-2 py-1 bg-neon-red/5">' +
+                    '<span class="text-neon-red text-xs font-mono">' + escapeHtml(a.fragments[i].substring(0, 150)) + '</span>' +
+                    '</div>';
+            }
+            html += '</div>';
+        } else {
+            html += '<div class="pj-green-muted text-xs">No system prompt fragments recovered.</div>';
+        }
+        return html;
+    }
+
+    function renderTemperatureAnalysis(a) {
+        var temp = a.estimated_temperature;
+        var barWidth = Math.min(temp / 2.0 * 100, 100);
+        var tempColor = temp < 0.3 ? '#00ff00' : (temp < 0.8 ? '#ffb000' : '#ff0040');
+        var html = '<div class="pj-green-body text-xs mb-2">' +
+            'Estimated temperature: <span class="font-bold" style="color:' + tempColor + ';">' + temp.toFixed(2) + '</span> | ' +
+            'Avg similarity: ' + a.average_similarity.toFixed(3) + ' | ' +
+            'Unique responses: ' + a.unique_responses + '/' + a.total_responses +
+            '</div>';
+        html += '<div style="height:12px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;margin-top:4px;">' +
+            '<div style="width:' + barWidth + '%;height:100%;background:linear-gradient(90deg,#00ff00,#ffb000,#ff0040);border-radius:4px;transition:width 0.5s;"></div>' +
+            '</div>';
+        html += '<div class="flex justify-between text-xs mt-0.5"><span class="pj-green-muted">deterministic (0.0)</span><span class="text-neon-red/60">random (2.0)</span></div>';
+        return html;
+    }
+
+    function renderBehaviorAnalysis(a) {
+        var html = '<div class="space-y-1">';
+        if (a.results) {
+            for (var i = 0; i < a.results.length; i++) {
+                var r = a.results[i];
+                var statusColor = r.is_refused ? '#ff0040' : (r.is_hedged ? '#ffb000' : '#00ff00');
+                var statusText = r.is_refused ? 'REFUSED' : (r.is_hedged ? 'HEDGED' : 'ANSWERED');
+                html += '<div class="flex items-center gap-2">' +
+                    '<span class="pj-amber-label text-xs font-bold w-24">' + escapeHtml(r.domain) + '</span>' +
+                    '<span class="text-xs font-bold" style="color:' + statusColor + ';">' + statusText + '</span>' +
+                    '<span class="pj-green-muted text-xs">' + r.response_length + ' chars</span>' +
+                    (r.contains_code ? '<span class="text-neon-cyan text-xs">[code]</span>' : '') +
+                    '</div>';
+            }
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function renderCapabilityAnalysis(a) {
+        var scores = a.capability_scores || {};
+        var html = '<div class="pj-green-body text-xs mb-2">Average score: <span class="text-neon-cyan font-bold">' +
+            (a.average_score * 100).toFixed(0) + '%</span></div>';
+        html += '<div class="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">';
+        var entries = Object.entries(scores).sort(function(a, b) { return b[1] - a[1]; });
+        for (var i = 0; i < entries.length; i++) {
+            var cap = entries[i][0];
+            var score = entries[i][1];
+            var barWidth = Math.round(score * 100);
+            var barColor = score >= 0.7 ? '#00ff00' : (score >= 0.4 ? '#ffb000' : '#ff0040');
+            html += '<div class="flex items-center gap-2">' +
+                '<span class="pj-green-muted text-xs w-28 text-right truncate">' + escapeHtml(cap) + '</span>' +
+                '<div style="flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;">' +
+                '<div style="width:' + barWidth + '%;height:100%;background:' + barColor + ';border-radius:2px;"></div>' +
+                '</div>' +
+                '<span class="text-xs font-bold" style="color:' + barColor + ';">' + barWidth + '%</span>' +
+                '</div>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    // ── Profile rendering ──
+
+    function renderProfile(profile) {
+        profilePanel.classList.remove('hidden');
+        var html = '';
+
+        // Boundary
+        var bIdx = profile.refusal_boundary_index;
+        var boundaryLabel = bIdx === -1 ? 'NONE (all probes answered)' : 'Probe #' + (bIdx + 1);
+        html += '<div class="flex items-center gap-2">' +
+            '<span class="pj-green-muted w-32">Safety boundary:</span>' +
+            '<span class="text-neon-cyan font-bold">' + boundaryLabel + '</span></div>';
+
+        // Training data
+        html += '<div class="flex items-center gap-2">' +
+            '<span class="pj-green-muted w-32">Training data:</span>' +
+            '<span class="text-neon-cyan font-bold">' + (profile.known_data_score * 100).toFixed(0) + '% match</span></div>';
+
+        // System prompt
+        var fragCount = profile.system_prompt_fragments ? profile.system_prompt_fragments.length : 0;
+        html += '<div class="flex items-center gap-2">' +
+            '<span class="pj-green-muted w-32">Sys prompt leaks:</span>' +
+            '<span class="' + (fragCount > 0 ? 'text-neon-red' : 'text-neon-cyan') + ' font-bold">' + fragCount + ' fragment(s)</span></div>';
+
+        // Temperature
+        html += '<div class="flex items-center gap-2">' +
+            '<span class="pj-green-muted w-32">Temperature est:</span>' +
+            '<span class="text-neon-cyan font-bold">' + profile.temperature_estimate.toFixed(2) + '</span></div>';
+
+        // Capabilities summary
+        if (profile.capability_scores) {
+            var caps = Object.entries(profile.capability_scores);
+            var avg = 0;
+            caps.forEach(function(c) { avg += c[1]; });
+            avg = caps.length > 0 ? (avg / caps.length) : 0;
+            html += '<div class="flex items-center gap-2">' +
+                '<span class="pj-green-muted w-32">Capabilities avg:</span>' +
+                '<span class="text-neon-cyan font-bold">' + (avg * 100).toFixed(0) + '%</span></div>';
+        }
+
+        // Summary text
+        if (profile.summary) {
+            html += '<div class="border-t border-green-500/20 mt-2 pt-2 pj-green-body text-xs whitespace-pre-wrap">' +
+                escapeHtml(profile.summary) + '</div>';
+        }
+
+        profileContent.innerHTML = html;
+        results.scrollTop = results.scrollHeight;
+    }
+
+    // ── Event handlers ──
+
+    // Individual technique buttons
+    document.querySelectorAll('.technique-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (isRunning) return;
+            var techId = btn.getAttribute('data-technique-id');
+
+            addEntry('<div class="text-neon-red font-bold text-xs tracking-wider mt-2">' +
+                '=== PROBING: ' + escapeHtml(btn.textContent.trim()) + ' ===</div>');
+
+            sseStream(API_BASE + '/api/probe', {technique_id: techId}, makeProbeHandlers());
+        });
+    });
+
+    // Full scan
+    fullScanBtn.addEventListener('click', function() {
+        if (isRunning) return;
+        profilePanel.classList.add('hidden');
+        addEntry('<div class="text-neon-red font-bold text-xs tracking-wider mt-2">' +
+            '=== FULL MODEL SCAN — ALL TECHNIQUES ===</div>');
+
+        sseStream(API_BASE + '/api/full-scan', {}, makeProbeHandlers());
+    });
+
+    // Reset
+    resetBtn.addEventListener('click', function() {
+        fetch(API_BASE + '/api/reset', {method: 'POST', headers: {'Content-Type': 'application/json'}}).then(function() {
+            results.innerHTML = '<div class="pj-green-secondary text-xs">&gt; STATE RESET<br>&gt; AWAITING INPUT...</div>';
+            profilePanel.classList.add('hidden');
+            profileContent.innerHTML = '';
+            isRunning = false;
+            setButtonStates(false);
+            if (window.showToast) window.showToast('State reset', 'success');
+        });
+    });
+})();
+</script>
+{% endblock %}

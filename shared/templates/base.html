@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}HACKING LLMs{% endblock %}</title>
+
+    <!-- Favicon — hacker terminal icon (SVG data URI) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%230a0a0a'/><text x='4' y='24' font-family='monospace' font-size='22' fill='%2300ff00'>&gt;_</text></svg>">
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'terminal-green': '#00ff00',
+                        'terminal-amber': '#ffb000',
+                        'neon-red': '#ff0040',
+                        'neon-cyan': '#00fff0',
+                        'dark-bg': '#0a0a0a',
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', '"Fira Code"', '"Cascadia Code"', 'monospace'],
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- JetBrains Mono from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+    {% block head %}{% endblock %}
+</head>
+<body class="h-full bg-[#0a0a0a] text-green-400 font-mono antialiased overflow-hidden">
+
+    <!-- Skip to main content for keyboard navigation -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-dark-bg focus:text-terminal-green focus:border focus:border-terminal-green focus:rounded">
+        Skip to main content
+    </a>
+
+    <!-- Scanline overlay -->
+    <div class="scanline-overlay" aria-hidden="true"></div>
+
+    <!-- Matrix rain canvas (background) -->
+    <canvas id="matrix-canvas" class="fixed inset-0 z-0 pointer-events-none opacity-15" aria-hidden="true"></canvas>
+
+    <!-- Main content -->
+    <div class="relative z-10 h-full flex flex-col">
+        <!-- Header -->
+        <header class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0" role="banner">
+            <div class="flex items-center gap-3 shrink-0">
+                <span class="text-terminal-green text-lg font-bold tracking-wider">
+                    {% block header_title %}[ HACKING LLMs ]{% endblock %}
+                </span>
+            </div>
+            <div class="flex-1 flex justify-center">
+                {% block header_center %}{% endblock %}
+            </div>
+            <div class="text-green-500/50 text-xs tracking-widest shrink-0">
+                {% block header_right %}DEMO SUITE v1.0{% endblock %}
+            </div>
+        </header>
+
+        <!-- Page content -->
+        <main id="main-content" class="flex-1 overflow-hidden" role="main">
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-green-500/30 px-6 py-2 text-green-500/30 text-xs tracking-wider shrink-0" role="contentinfo">
+            {% block footer %}
+            <span>&gt; SYSTEM READY</span>
+            <span class="float-right">LOCAL LLM // OLLAMA</span>
+            {% endblock %}
+        </footer>
+    </div>
+
+    <!-- Toast notification container -->
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-label="Notifications"></div>
+
+    <!-- Toast helper -->
+    <script>
+    window.showToast = function(message, type, durationMs) {
+        type = type || 'info';
+        durationMs = durationMs || 4000;
+        var container = document.getElementById('toast-container');
+        if (!container) return;
+        var el = document.createElement('div');
+        el.className = 'toast toast-' + type;
+        el.setAttribute('role', 'status');
+        el.textContent = '> ' + message;
+        el.style.setProperty('--toast-duration', (durationMs / 1000) + 's');
+        container.appendChild(el);
+        setTimeout(function() { el.remove(); }, durationMs + 400);
+    };
+    </script>
+
+    <!-- Matrix rain script -->
+    <script>
+    (function() {
+        // Respect reduced-motion preference
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        const canvas = document.getElementById('matrix-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            columns = Math.floor(canvas.width / fontSize);
+            drops = new Array(columns).fill(1);
+        }
+
+        const fontSize = 14;
+        let columns = Math.floor(canvas.width / fontSize);
+        let drops = new Array(columns).fill(1);
+        let lastFrame = 0;
+        let running = true;
+        const FRAME_INTERVAL = 50; // ~20fps
+
+        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF';
+
+        function draw(timestamp) {
+            if (!running) return;
+
+            if (timestamp - lastFrame >= FRAME_INTERVAL) {
+                lastFrame = timestamp;
+
+                ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#00ff00';
+                ctx.font = fontSize + 'px monospace';
+
+                for (let i = 0; i < drops.length; i++) {
+                    const char = chars[Math.floor(Math.random() * chars.length)];
+                    ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+            requestAnimationFrame(draw);
+        }
+
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Pause when tab is hidden to save resources
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                running = false;
+            } else {
+                running = true;
+                requestAnimationFrame(draw);
+            }
+        });
+
+        requestAnimationFrame(draw);
+    })();
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

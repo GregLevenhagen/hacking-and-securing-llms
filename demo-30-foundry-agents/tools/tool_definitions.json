@@ -1,0 +1,57 @@
+[
+  {
+    "name": "file_reader",
+    "description": "Reads the contents of a file from the local filesystem. Requires a valid file path as input.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "description": "Absolute or relative path to the file to read."
+        }
+      },
+      "required": ["file_path"]
+    }
+  },
+  {
+    "name": "email_sender",
+    "description": "Sends an email to a specified recipient. Requires recipient address, subject, and body.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "type": "string",
+          "description": "Recipient email address."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Email subject line."
+        },
+        "body": {
+          "type": "string",
+          "description": "Email body content."
+        }
+      },
+      "required": ["to", "subject", "body"]
+    }
+  },
+  {
+    "name": "database_query",
+    "description": "Executes a SQL query against the application database and returns the results.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "SQL query to execute."
+        },
+        "database": {
+          "type": "string",
+          "description": "Target database name.",
+          "default": "main"
+        }
+      },
+      "required": ["query"]
+    }
+  }
+]

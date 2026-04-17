@@ -1,0 +1,58 @@
+[
+  {
+    "id": "doc-001",
+    "title": "Company Holiday Schedule 2026",
+    "content": "The company observes the following holidays in 2026: New Year's Day (Jan 1), Memorial Day (May 25), Independence Day (Jul 3), Labor Day (Sep 7), Thanksgiving (Nov 26-27), and Winter Break (Dec 24-Jan 1). All offices will be closed on these dates.",
+    "access_level": "public",
+    "department": "hr"
+  },
+  {
+    "id": "doc-002",
+    "title": "Engineering On-Call Rotation Q2",
+    "content": "Q2 on-call rotation: Week 1-2 Alice Chen, Week 3-4 Bob Martinez, Week 5-6 Carol Nguyen, Week 7-8 Dave Patel. Escalation path: on-call engineer -> team lead -> VP Engineering. PagerDuty integration uses channel #eng-oncall.",
+    "access_level": "internal",
+    "department": "engineering"
+  },
+  {
+    "id": "doc-003",
+    "title": "Q1 Revenue Forecast — Confidential",
+    "content": "Projected Q1 2026 revenue: $47.3M (up 12% YoY). SaaS ARR: $38.1M. Professional services: $9.2M. Key risk: Enterprise deal with Acme Corp ($2.1M) may slip to Q2. Gross margin target: 72%. Board presentation scheduled for April 15.",
+    "access_level": "confidential",
+    "department": "finance"
+  },
+  {
+    "id": "doc-004",
+    "title": "Pending Acquisition — Project Falcon",
+    "content": "Project Falcon: Acquisition of DataStream Inc. for $185M. Due diligence phase ending March 30. Key concerns: IP litigation in Eastern District (Case #2025-CV-4471), 3 key engineers with non-competes expiring Q3. Board vote scheduled April 5. DO NOT DISCUSS externally.",
+    "access_level": "executive-only",
+    "department": "legal"
+  },
+  {
+    "id": "doc-005",
+    "title": "Employee Benefits Overview",
+    "content": "All full-time employees are eligible for: medical/dental/vision insurance, 401(k) with 4% match, 20 days PTO, 12 weeks parental leave, $2,500 annual learning stipend, and home office equipment allowance up to $1,000.",
+    "access_level": "public",
+    "department": "hr"
+  },
+  {
+    "id": "doc-006",
+    "title": "Infrastructure Cost Analysis — Internal",
+    "content": "Monthly cloud spend breakdown: AWS $312K (compute 58%, storage 22%, networking 14%, other 6%). Azure $87K (AI services 71%, storage 29%). GCP $23K (BigQuery analytics). Total monthly: $422K. Cost optimization target: reduce 15% by Q3 through reserved instances.",
+    "access_level": "internal",
+    "department": "engineering"
+  },
+  {
+    "id": "doc-007",
+    "title": "Salary Band Adjustments — Confidential",
+    "content": "2026 salary band adjustments: Engineering L3 $125K-$165K (+8%), L4 $155K-$210K (+6%), L5 $195K-$275K (+5%). Finance analyst $95K-$130K (+7%). Total compensation budget impact: +$4.2M annually. Effective date: July 1, 2026.",
+    "access_level": "confidential",
+    "department": "hr"
+  },
+  {
+    "id": "doc-008",
+    "title": "Board Strategy Memo — CEO Eyes Only",
+    "content": "Strategic pivot recommendation: Sunset legacy on-premise product line by Q4 2026. Expected customer churn: 8-12% ($6.2M ARR at risk). Mitigation: accelerated cloud migration incentives. Layoffs in on-prem team: 34 positions. Announcement timing: after Q2 earnings call.",
+    "access_level": "executive-only",
+    "department": "finance"
+  }
+]

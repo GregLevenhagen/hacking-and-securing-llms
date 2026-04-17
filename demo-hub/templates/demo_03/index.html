@@ -1,0 +1,176 @@
+{% extends "hub_base.html" %}
+
+{% block title %}RAG POISONING // DEMO 03{% endblock %}
+
+{% block demo_content %}
+<div class="h-full flex flex-col">
+
+    <div class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="text-neon-cyan text-sm tracking-wider font-bold">
+            [ RAG POISONING // DEMO 03 ]
+        </div>
+        <button id="reset-btn"
+            class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all"
+        >RESET</button>
+    </div>
+
+    <!-- Phase buttons -->
+    <div class="border-b border-green-500/20 px-6 py-3 shrink-0">
+        <div class="pj-green-label text-xs mb-2 tracking-wider">&gt; EXECUTE PHASES IN ORDER:</div>
+        <div class="flex gap-3">
+            <button class="phase-btn px-4 py-2 text-xs border pj-border-cyan pj-cyan-body hover:text-neon-cyan hover:border-neon-cyan/60 rounded transition-all font-bold" data-phase="1">
+                1: BUILD INDEX
+            </button>
+            <button class="phase-btn px-4 py-2 text-xs border pj-border-green pj-green-body hover:text-terminal-green hover:border-terminal-green/60 rounded transition-all font-bold" data-phase="2" disabled>
+                2: QUERY CLEAN
+            </button>
+            <button class="phase-btn px-4 py-2 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 rounded transition-all font-bold" data-phase="3" disabled>
+                3: POISON INDEX
+            </button>
+            <button class="phase-btn px-4 py-2 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 rounded transition-all font-bold" data-phase="4" disabled>
+                4: QUERY POISONED
+            </button>
+            <button class="phase-btn px-4 py-2 text-xs border pj-border-amber pj-amber-body hover:text-terminal-amber hover:border-terminal-amber/60 rounded transition-all font-bold" data-phase="5" disabled>
+                5: COMPARE
+            </button>
+        </div>
+    </div>
+
+    <!-- Results log -->
+    <div id="results" class="flex-1 overflow-y-auto px-6 py-4 space-y-3 scrollbar-thin">
+        <div class="pj-green-secondary text-xs">
+            &gt; RAG POISONING DEMO — 5-PHASE ATTACK WALKTHROUGH<br>
+            &gt; CLICK PHASE 1 TO BEGIN...
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; RAG ATTACK: ACTIVE // DEMO 03</span>
+<span class="float-right">RAG POISONING // DEMO HUB</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    var results = document.getElementById('results');
+    var phaseBtns = document.querySelectorAll('.phase-btn');
+    var currentPhase = {{ current_phase }};
+    var isRunning = false;
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function addEntry(html) {
+        var el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        results.appendChild(el);
+        results.scrollTop = results.scrollHeight;
+    }
+
+    function updateButtons() {
+        phaseBtns.forEach(function(btn) {
+            var phase = parseInt(btn.getAttribute('data-phase'));
+            btn.disabled = isRunning || phase > currentPhase + 1;
+            if (phase <= currentPhase) {
+                btn.classList.add('opacity-50');
+            }
+        });
+    }
+
+    function runPhase(phase) {
+        if (isRunning) return;
+        isRunning = true;
+        updateButtons();
+
+        var colors = {1: 'neon-cyan', 2: 'terminal-green', 3: 'neon-red', 4: 'neon-red', 5: 'terminal-amber'};
+        var color = colors[phase] || 'terminal-green';
+
+        addEntry('<div class="border border-' + color + '/30 rounded p-2 bg-' + color + '/5">' +
+            '<div class="text-' + color + ' font-bold text-xs tracking-wider">PHASE ' + phase + ' — EXECUTING...</div></div>');
+
+        fetch('/demo-03/api/phase', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({phase: phase}),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) { isRunning = false; updateButtons(); return; }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    var eventType = '', eventData = '';
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) eventType = line.slice(7).trim();
+                        else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                var data;
+                                try { data = JSON.parse(eventData); } catch(e) { continue; }
+                                if (eventType === 'progress') {
+                                    addEntry('<div class="pj-green-secondary text-xs">&gt; ' + escapeHtml(data.message) + '</div>');
+                                } else if (eventType === 'phase_result') {
+                                    currentPhase = data.phase;
+                                    if (data.phase === 5) {
+                                        addEntry(
+                                            '<div class="flex gap-4 mt-2">' +
+                                            '<div class="flex-1 border border-terminal-green/30 rounded p-3 bg-terminal-green/5">' +
+                                            '<div class="text-terminal-green font-bold text-xs mb-1">CLEAN RESPONSE:</div>' +
+                                            '<div class="text-terminal-green/80 text-sm">' + escapeHtml(data.clean) + '</div></div>' +
+                                            '<div class="flex-1 border border-neon-red/30 rounded p-3 bg-neon-red/5">' +
+                                            '<div class="text-neon-red font-bold text-xs mb-1">POISONED RESPONSE:</div>' +
+                                            '<div class="text-neon-red/80 text-sm">' + escapeHtml(data.poisoned) + '</div></div></div>'
+                                        );
+                                    } else {
+                                        addEntry('<div class="border border-' + color + '/20 rounded p-3 bg-' + color + '/5">' +
+                                            '<div class="text-' + color + '/80 text-sm">' + escapeHtml(data.message) + '</div></div>');
+                                    }
+                                } else if (eventType === 'error') {
+                                    addEntry('<div class="text-neon-red font-bold">[ERROR] ' + escapeHtml(data.message) + '</div>');
+                                } else if (eventType === 'done') {
+                                    isRunning = false;
+                                    updateButtons();
+                                }
+                                eventType = ''; eventData = '';
+                            }
+                        }
+                    }
+                    processChunk();
+                });
+            }
+            processChunk();
+        });
+    }
+
+    phaseBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var phase = parseInt(btn.getAttribute('data-phase'));
+            runPhase(phase);
+        });
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        fetch('/demo-03/api/reset', {method: 'POST', headers: {'Content-Type': 'application/json'}}).then(function() {
+            currentPhase = 0;
+            results.innerHTML = '<div class="pj-green-secondary text-xs">&gt; STATE RESET<br>&gt; CLICK PHASE 1 TO BEGIN...</div>';
+            updateButtons();
+            phaseBtns.forEach(function(btn) { btn.classList.remove('opacity-50'); });
+            if (window.showToast) window.showToast('State reset', 'success');
+        });
+    });
+
+    updateButtons();
+})();
+</script>
+{% endblock %}

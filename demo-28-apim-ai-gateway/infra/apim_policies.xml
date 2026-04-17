@@ -1,0 +1,57 @@
+<!--
+  Sample Azure API Management (APIM) policy for LLM AI Gateway.
+
+  These policies demonstrate how APIM can enforce governance controls
+  on LLM API calls: token-based rate limiting, content safety scanning,
+  and semantic caching for cost reduction and latency improvement.
+
+  Ref: https://learn.microsoft.com/en-us/azure/api-management/api-management-policies
+-->
+<policies>
+    <inbound>
+        <base />
+
+        <!-- 1. Token-based rate limiting (per subscription key) -->
+        <llm-token-limit
+            counter-key="@(context.Subscription.Id)"
+            tokens-per-minute="10000"
+            estimate-prompt-tokens="true"
+            remaining-tokens-variable-name="remainingTokens"
+            remaining-tokens-header-name="X-RateLimit-Remaining-Tokens">
+            <api:set-status code="429" reason="Token budget exceeded" />
+        </llm-token-limit>
+
+        <!-- 2. Content safety screening on inbound prompts -->
+        <llm-content-safety
+            backend-id="content-safety-backend">
+            <fail-condition>@(context.Variables["contentSafetyResult"]["severity"] >= 4)</fail-condition>
+            <on-fail>
+                <return-response>
+                    <set-status code="400" reason="Content safety violation" />
+                    <set-body>{"error": "Content blocked by safety policy"}</set-body>
+                </return-response>
+            </on-fail>
+        </llm-content-safety>
+
+        <!-- 3. Semantic cache lookup (return cached response for similar prompts) -->
+        <llm-semantic-cache-lookup
+            score-threshold="0.95"
+            embeddings-backend-id="embeddings-backend"
+            max-cache-age="3600" />
+    </inbound>
+
+    <backend>
+        <base />
+    </backend>
+
+    <outbound>
+        <base />
+
+        <!-- 4. Store response in semantic cache for future similar queries -->
+        <llm-semantic-cache-store duration="3600" />
+    </outbound>
+
+    <on-error>
+        <base />
+    </on-error>
+</policies>

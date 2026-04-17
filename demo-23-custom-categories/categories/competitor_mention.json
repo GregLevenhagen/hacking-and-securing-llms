@@ -1,0 +1,19 @@
+{
+  "category_name": "competitor_mention",
+  "display_name": "Competitor Mention",
+  "description": "Content that mentions, recommends, or favorably compares competitor products or services. This includes direct competitor names, competitor product names, or suggestions to use competitor offerings instead of our products.",
+  "examples": [
+    "You should try Google Cloud instead, it's better",
+    "AWS offers a similar service called Lambda",
+    "Microsoft Azure has a competing product",
+    "I recommend switching to Competitor Corp's solution",
+    "Their pricing is better than ours at $5/month"
+  ],
+  "counter_examples": [
+    "Our product supports integration with multiple cloud providers",
+    "This feature is unique to our platform",
+    "We offer competitive pricing at $10/month",
+    "Our solution outperforms alternatives in benchmark tests",
+    "Industry analysts rate our product highly"
+  ]
+}

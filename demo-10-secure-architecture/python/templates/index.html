@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+
+{% block title %}SECURE ARCHITECTURE // DEFENSE IN DEPTH{% endblock %}
+
+{% block header_title %}[ SECURE ARCHITECTURE // DEMO 10 ]{% endblock %}
+{% block header_right %}DEFENSE IN DEPTH ENGINE v1.0{% endblock %}
+
+{% block content %}
+<div class="h-full flex flex-col">
+
+    <!-- ASCII Art Title Banner -->
+    <div class="text-center py-3 border-b border-green-500/20 shrink-0">
+        <h1 class="glitch text-terminal-green text-lg md:text-xl font-bold tracking-[0.3em] neon-text-green"
+            data-text="SECURE ARCHITECTURE // DEFENSE IN DEPTH">
+            SECURE ARCHITECTURE // DEFENSE IN DEPTH
+        </h1>
+        <div class="text-green-500/30 text-xs mt-1 tracking-widest">
+            VULNERABLE vs DEFENDED &mdash; SIDE-BY-SIDE COMPARISON
+        </div>
+    </div>
+
+    <!-- Attack Scenario Buttons -->
+    <div class="border-b border-green-500/20 px-4 py-3 shrink-0">
+        <div class="text-green-500/40 text-xs mb-2 tracking-wider">&gt; SELECT ATTACK VECTOR:</div>
+        <div class="flex flex-wrap gap-2" id="attack-buttons">
+            {% for scenario in scenarios %}
+            <button
+                class="attack-btn px-3 py-1.5 text-xs border rounded transition-all duration-200 font-mono
+                    {% if scenario.category == 'direct_injection' or scenario.category == 'indirect_injection' or scenario.category == 'prompt_extraction' %}
+                        border-terminal-amber/30 text-terminal-amber/70 hover:text-terminal-amber hover:border-terminal-amber/60 hover:shadow-[0_0_12px_#ffb00033]
+                    {% elif scenario.category == 'rag_poisoning' %}
+                        border-neon-cyan/30 text-neon-cyan/70 hover:text-neon-cyan hover:border-neon-cyan/60 hover:shadow-[0_0_12px_#00fff033]
+                    {% else %}
+                        border-neon-red/30 text-neon-red/70 hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_12px_#ff004033]
+                    {% endif %}
+                "
+                data-scenario-id="{{ scenario.id }}"
+                data-attack-text="{{ scenario.attack_text }}"
+                data-category="{{ scenario.category }}"
+                data-defense="{{ scenario.expected_defense_layer }}"
+            >
+                &gt; INJECT: {{ scenario.category | replace('_', ' ') | upper }} ({{ scenario.id }})
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Split-Screen Panels -->
+    <div class="flex-1 flex overflow-hidden min-h-0">
+
+        <!-- LEFT: Vulnerable System -->
+        <div class="w-1/2 flex flex-col border-r border-green-500/20">
+            <!-- Panel header -->
+            <div class="px-4 py-2 border-b border-neon-red/30 bg-neon-red/5 shrink-0 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-neon-red neon-glow-red"></div>
+                <span class="text-neon-red font-bold text-sm tracking-wider neon-text-red">
+                    [ VULNERABLE SYSTEM ]
+                </span>
+                <span class="text-neon-red/40 text-xs ml-auto">NO DEFENSES</span>
+            </div>
+            <!-- Panel content -->
+            <div id="vuln-panel" class="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+                <div class="text-green-500/30 text-xs">
+                    &gt; SYSTEM ONLINE — NO DEFENSE LAYERS ACTIVE<br>
+                    &gt; ALL TOOL CALLS AUTO-AUTHORIZED<br>
+                    &gt; AWAITING ATTACK VECTOR...
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Secured System -->
+        <div class="w-1/2 flex flex-col">
+            <!-- Panel header -->
+            <div class="px-4 py-2 border-b border-terminal-green/30 bg-terminal-green/5 shrink-0 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-terminal-green neon-glow-green"></div>
+                <span class="text-terminal-green font-bold text-sm tracking-wider neon-text-green">
+                    [ SECURED SYSTEM ]
+                </span>
+                <span class="text-terminal-green/40 text-xs ml-auto">ALL GUARDS ACTIVE</span>
+            </div>
+
+            <!-- Defense Layer Indicators -->
+            <div id="defense-indicators" class="px-4 py-2 border-b border-green-500/20 shrink-0 flex gap-3 flex-wrap">
+                <div class="defense-indicator flex items-center gap-1.5" data-layer="input_guard">
+                    <div class="indicator-dot w-2 h-2 rounded-full bg-gray-600 transition-all duration-500"></div>
+                    <span class="indicator-label text-gray-500 text-xs font-bold tracking-wider transition-all duration-500">INPUT GUARD</span>
+                </div>
+                <div class="defense-indicator flex items-center gap-1.5" data-layer="retrieval_guard">
+                    <div class="indicator-dot w-2 h-2 rounded-full bg-gray-600 transition-all duration-500"></div>
+                    <span class="indicator-label text-gray-500 text-xs font-bold tracking-wider transition-all duration-500">RETRIEVAL GUARD</span>
+                </div>
+                <div class="defense-indicator flex items-center gap-1.5" data-layer="output_guard">
+                    <div class="indicator-dot w-2 h-2 rounded-full bg-gray-600 transition-all duration-500"></div>
+                    <span class="indicator-label text-gray-500 text-xs font-bold tracking-wider transition-all duration-500">OUTPUT GUARD</span>
+                </div>
+                <div class="defense-indicator flex items-center gap-1.5" data-layer="action_guard">
+                    <div class="indicator-dot w-2 h-2 rounded-full bg-gray-600 transition-all duration-500"></div>
+                    <span class="indicator-label text-gray-500 text-xs font-bold tracking-wider transition-all duration-500">ACTION GUARD</span>
+                </div>
+            </div>
+
+            <!-- Panel content -->
+            <div id="secure-panel" class="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+                <div class="text-green-500/30 text-xs">
+                    &gt; SYSTEM ONLINE — ALL DEFENSE LAYERS ARMED<br>
+                    &gt; INPUT GUARD: <span class="text-terminal-green">READY</span> |
+                    RETRIEVAL GUARD: <span class="text-terminal-green">READY</span> |
+                    OUTPUT GUARD: <span class="text-terminal-green">READY</span> |
+                    ACTION GUARD: <span class="text-terminal-green">READY</span><br>
+                    &gt; AWAITING ATTACK VECTOR...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; WAR ROOM: ACTIVE</span>
+<span class="float-right">SECURE ARCHITECTURE // DEMO 10</span>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    /* Defense indicator activation animation */
+    .defense-indicator.active .indicator-dot {
+        background-color: #00ff00 !important;
+        box-shadow: 0 0 8px #00ff00, 0 0 20px rgba(0, 255, 0, 0.4);
+        animation: pulseGreen 1.5s ease-in-out 3;
+    }
+    .defense-indicator.active .indicator-label {
+        color: #00ff00 !important;
+        text-shadow: 0 0 5px #00ff00, 0 0 10px rgba(0, 255, 0, 0.3);
+    }
+
+    /* Transmitting overlay */
+    .transmit-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 10, 10, 0.85);
+        z-index: 20;
+    }
+    .transmit-text {
+        color: #00ff00;
+        font-size: 0.875rem;
+        font-weight: bold;
+        letter-spacing: 0.3em;
+        animation: transmit 0.3s ease-in-out infinite alternate;
+    }
+
+    /* Blocked message highlight */
+    .blocked-msg {
+        border-left: 3px solid #00ff00;
+        padding-left: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Attack succeeded highlight */
+    .attack-succeeded {
+        border-left: 3px solid #ff0040;
+        padding-left: 0.75rem;
+        margin-top: 0.25rem;
+    }
+</style>
+
+<script>
+(function() {
+    const vulnPanel = document.getElementById('vuln-panel');
+    const securePanel = document.getElementById('secure-panel');
+    const attackButtons = document.querySelectorAll('.attack-btn');
+    const defenseIndicators = document.querySelectorAll('.defense-indicator');
+
+    let isRunning = false;
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function scrollToBottom(el) {
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function addEntry(panel, html) {
+        const el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        panel.appendChild(el);
+        scrollToBottom(panel);
+    }
+
+    function resetIndicators() {
+        defenseIndicators.forEach(ind => {
+            ind.classList.remove('active');
+        });
+    }
+
+    function activateIndicator(layerName) {
+        // Map blocked_by values to indicator data-layer
+        const mapping = {
+            'regex_filter': 'input_guard',
+            'input_sanitizer': 'input_guard',
+            'llm_judge': 'input_guard',
+            'input_guard': 'input_guard',
+            'document_validator': 'retrieval_guard',
+            'injection_detector': 'retrieval_guard',
+            'source_verifier': 'retrieval_guard',
+            'retrieval_guard': 'retrieval_guard',
+            'content_filter': 'output_guard',
+            'pii_detector': 'output_guard',
+            'response_constrainer': 'output_guard',
+            'output_guard': 'output_guard',
+            'risk_classifier': 'action_guard',
+            'approval_gate': 'action_guard',
+            'action_guard': 'action_guard',
+        };
+
+        const guardLayer = mapping[layerName] || layerName;
+        const indicator = document.querySelector(`.defense-indicator[data-layer="${guardLayer}"]`);
+        if (indicator) {
+            indicator.classList.add('active');
+        }
+    }
+
+    function setButtonsEnabled(enabled) {
+        attackButtons.forEach(btn => {
+            btn.disabled = !enabled;
+            if (enabled) {
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        });
+        isRunning = !enabled;
+    }
+
+    function renderToolCalls(toolCalls, isVulnerable) {
+        if (!toolCalls || toolCalls.length === 0) return '';
+
+        let html = '';
+        for (const tc of toolCalls) {
+            const argsStr = escapeHtml(JSON.stringify(tc.args));
+            const resultStr = escapeHtml(tc.result);
+
+            if (isVulnerable) {
+                html += `
+                    <div class="border border-neon-red/20 rounded p-2 bg-neon-red/5 text-sm mb-1">
+                        <div class="text-neon-red font-bold text-xs">
+                            &gt; EXECUTING: ${escapeHtml(tc.tool)}
+                            <span class="text-neon-red/50">(${argsStr})</span>
+                        </div>
+                        <div class="text-neon-red/60 text-xs mt-1 pl-3 border-l border-neon-red/20">
+                            <pre class="whitespace-pre-wrap">${resultStr}</pre>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const wasBlocked = tc.blocked;
+                if (wasBlocked) {
+                    html += `
+                        <div class="border border-terminal-green/30 rounded p-2 bg-terminal-green/5 text-sm mb-1">
+                            <div class="text-terminal-amber font-bold text-xs">
+                                &gt; INTERCEPTED: ${escapeHtml(tc.tool)}
+                                <span class="text-terminal-green font-bold ml-2">[ BLOCKED BY: ${escapeHtml(tc.blocked_by)} ]</span>
+                            </div>
+                            <div class="text-terminal-green/60 text-xs mt-1 pl-3 border-l border-terminal-green/20">
+                                <pre class="whitespace-pre-wrap">${resultStr}</pre>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="border border-green-500/20 rounded p-2 bg-green-500/5 text-sm mb-1">
+                            <div class="text-green-500/70 font-bold text-xs">
+                                &gt; AUTHORIZED: ${escapeHtml(tc.tool)}
+                                <span class="text-green-500/40">(${argsStr})</span>
+                            </div>
+                            <div class="text-green-500/50 text-xs mt-1 pl-3 border-l border-green-500/20">
+                                <pre class="whitespace-pre-wrap">${resultStr}</pre>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+        return html;
+    }
+
+    function runAttack(attackText, category, expectedDefense) {
+        if (isRunning) return;
+        setButtonsEnabled(false);
+        resetIndicators();
+
+        // Show the attack input on both panels
+        const attackHtml = `
+            <div class="border border-terminal-amber/30 rounded p-2 bg-terminal-amber/5 mb-2">
+                <div class="text-terminal-amber text-xs font-bold tracking-wider mb-1">
+                    &gt; INCOMING ATTACK [${escapeHtml(category.replace(/_/g, ' ').toUpperCase())}]
+                </div>
+                <div class="text-terminal-amber/80 text-sm">${escapeHtml(attackText)}</div>
+            </div>
+        `;
+        addEntry(vulnPanel, attackHtml);
+        addEntry(securePanel, attackHtml);
+
+        // Show transmitting status
+        addEntry(vulnPanel, '<div class="text-neon-red/50 text-xs transmitting">&gt; TRANSMITTING...</div>');
+        addEntry(securePanel, '<div class="text-terminal-green/50 text-xs transmitting">&gt; TRANSMITTING...</div>');
+
+        // Start SSE
+        fetch('/api/attack', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({attack_text: attackText}),
+        }).then(response => {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            function processChunk() {
+                reader.read().then(({done, value}) => {
+                    if (done) {
+                        setButtonsEnabled(true);
+                        return;
+                    }
+
+                    buffer += decoder.decode(value, {stream: true});
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    let eventType = '';
+                    let eventData = '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event: ')) {
+                            eventType = line.slice(7).trim();
+                        } else if (line.startsWith('data: ')) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                handleEvent(eventType, eventData, expectedDefense);
+                                eventType = '';
+                                eventData = '';
+                            }
+                        }
+                    }
+
+                    processChunk();
+                });
+            }
+
+            processChunk();
+        }).catch(err => {
+            addEntry(vulnPanel, `<div class="text-neon-red">[CONNECTION ERROR] ${escapeHtml(err.message)}</div>`);
+            addEntry(securePanel, `<div class="text-neon-red">[CONNECTION ERROR] ${escapeHtml(err.message)}</div>`);
+            setButtonsEnabled(true);
+        });
+    }
+
+    function handleEvent(type, dataStr, expectedDefense) {
+        let data;
+        try {
+            data = JSON.parse(dataStr);
+        } catch {
+            return;
+        }
+
+        switch (type) {
+            case 'vuln_status':
+                // Remove transmitting indicator
+                const vulnTx = vulnPanel.querySelector('.transmitting');
+                if (vulnTx) vulnTx.remove();
+                break;
+
+            case 'vuln_result': {
+                const toolHtml = renderToolCalls(data.tool_calls, true);
+                addEntry(vulnPanel, `
+                    <div>
+                        ${toolHtml}
+                        <div class="attack-succeeded mt-2">
+                            <div class="text-neon-red/50 text-xs font-bold mb-1">&lt; VULNERABLE RESPONSE:</div>
+                            <div class="text-neon-red/80 text-sm leading-relaxed">${escapeHtml(data.response)}</div>
+                        </div>
+                        <div class="text-neon-red font-bold text-xs mt-2 neon-text-red">
+                            [ ATTACK SUCCEEDED &mdash; NO DEFENSES ]
+                        </div>
+                    </div>
+                `);
+                break;
+            }
+
+            case 'secure_status':
+                // Remove transmitting indicator
+                const secTx = securePanel.querySelector('.transmitting');
+                if (secTx) secTx.remove();
+                break;
+
+            case 'secure_result': {
+                const toolHtml = renderToolCalls(data.tool_calls, false);
+
+                if (data.blocked) {
+                    // Attack was blocked
+                    activateIndicator(data.blocked_by);
+
+                    // Also activate for any blocked tool calls
+                    for (const tc of (data.tool_calls || [])) {
+                        if (tc.blocked && tc.blocked_by) {
+                            activateIndicator(tc.blocked_by);
+                        }
+                    }
+
+                    addEntry(securePanel, `
+                        <div>
+                            ${toolHtml}
+                            <div class="blocked-msg mt-2">
+                                <div class="text-terminal-green font-bold text-xs mb-1 tracking-wider">
+                                    [ BLOCKED BY: ${escapeHtml(data.blocked_by.toUpperCase())} ]
+                                </div>
+                                <div class="text-terminal-green/80 text-sm leading-relaxed">${escapeHtml(data.response)}</div>
+                            </div>
+                            <div class="text-terminal-green font-bold text-xs mt-2 neon-text-green">
+                                [ ATTACK NEUTRALIZED ]
+                            </div>
+                        </div>
+                    `);
+                } else {
+                    // Attack was not blocked (benign input or defense missed)
+                    // Check if any individual tool calls were blocked
+                    let anyToolBlocked = false;
+                    for (const tc of (data.tool_calls || [])) {
+                        if (tc.blocked && tc.blocked_by) {
+                            activateIndicator(tc.blocked_by);
+                            anyToolBlocked = true;
+                        }
+                    }
+
+                    if (anyToolBlocked) {
+                        addEntry(securePanel, `
+                            <div>
+                                ${toolHtml}
+                                <div class="blocked-msg mt-2">
+                                    <div class="text-terminal-green/50 text-xs font-bold mb-1">&lt; SECURED RESPONSE:</div>
+                                    <div class="text-terminal-green/80 text-sm leading-relaxed">${escapeHtml(data.response)}</div>
+                                </div>
+                                <div class="text-terminal-green font-bold text-xs mt-2 neon-text-green">
+                                    [ HIGH-RISK ACTIONS BLOCKED ]
+                                </div>
+                            </div>
+                        `);
+                    } else {
+                        addEntry(securePanel, `
+                            <div>
+                                ${toolHtml}
+                                <div class="border border-green-500/20 rounded p-2 bg-green-500/5 mt-2">
+                                    <div class="text-green-500/50 text-xs font-bold mb-1">&lt; SECURED RESPONSE:</div>
+                                    <div class="text-terminal-green/80 text-sm leading-relaxed">${escapeHtml(data.response)}</div>
+                                </div>
+                                <div class="text-green-500/50 text-xs mt-2">
+                                    [ INPUT ALLOWED — ALL GUARDS PASSED ]
+                                </div>
+                            </div>
+                        `);
+                    }
+                }
+                break;
+            }
+
+            case 'error':
+                addEntry(vulnPanel, `<div class="text-neon-red font-bold">[ERROR] ${escapeHtml(data.message)}</div>`);
+                addEntry(securePanel, `<div class="text-neon-red font-bold">[ERROR] ${escapeHtml(data.message)}</div>`);
+                break;
+
+            case 'done':
+                addEntry(vulnPanel, '<div class="text-green-500/30 text-xs mt-2">&gt; AWAITING NEXT ATTACK...</div>');
+                addEntry(securePanel, '<div class="text-green-500/30 text-xs mt-2">&gt; AWAITING NEXT ATTACK...</div>');
+                setButtonsEnabled(true);
+                break;
+        }
+    }
+
+    // Attack button click handlers
+    attackButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const attackText = btn.getAttribute('data-attack-text');
+            const category = btn.getAttribute('data-category');
+            const defense = btn.getAttribute('data-defense');
+            if (attackText && !isRunning) {
+                runAttack(attackText, category, defense);
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

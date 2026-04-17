@@ -1,0 +1,669 @@
+/* ============================================================
+   HACKING LLMs — Hacker Aesthetic Styles
+   Black hat / Matrix / Mr. Robot visual theme
+   ============================================================ */
+
+/* --- Cross-document View Transitions (eliminates white flash) --- */
+@view-transition {
+    navigation: auto;
+}
+
+/* --- CSS Custom Properties (Design Tokens) --------------- */
+:root {
+    /* Core hacker palette */
+    --color-terminal-green: #00ff00;
+    --color-terminal-amber: #ffb000;
+    --color-neon-red: #ff0040;
+    --color-neon-cyan: #00fff0;
+    --color-dark-bg: #0a0a0a;
+
+    /* Derived opacity variants — muted (0.2) */
+    --color-green-muted: rgba(0, 255, 0, 0.2);
+    --color-green-subtle: rgba(0, 255, 0, 0.015);
+    --color-green-border: rgba(0, 255, 0, 0.3);
+    --color-red-muted: rgba(255, 0, 64, 0.2);
+    --color-cyan-muted: rgba(0, 255, 240, 0.2);
+    --color-amber-muted: rgba(255, 176, 0, 0.2);
+
+    /* Background tints (0.08) — for toast/card backgrounds */
+    --color-green-bg: rgba(0, 255, 0, 0.08);
+    --color-red-bg: rgba(255, 0, 64, 0.08);
+    --color-cyan-bg: rgba(0, 255, 240, 0.08);
+    --color-amber-bg: rgba(255, 176, 0, 0.08);
+
+    /* Border variants (0.3) */
+    --color-red-border: rgba(255, 0, 64, 0.3);
+    --color-cyan-border: rgba(0, 255, 240, 0.3);
+    --color-amber-border: rgba(255, 176, 0, 0.3);
+
+    /* Highlight / pulse variants (0.5) */
+    --color-green-highlight: rgba(0, 255, 0, 0.5);
+    --color-red-highlight: rgba(255, 0, 64, 0.5);
+
+    /* Shimmer / scrollbar variants */
+    --color-green-shimmer: rgba(0, 255, 0, 0.12);
+    --color-green-hover: rgba(0, 255, 0, 0.4);
+
+    /* Surface colors */
+    --color-surface: #0a0a0a;
+    --color-surface-raised: rgba(0, 255, 0, 0.05);
+    --color-surface-overlay: rgba(10, 10, 10, 0.9);
+
+    /* Text colors */
+    --color-text-primary: #00ff00;
+    --color-text-secondary: rgba(0, 255, 0, 0.5);
+    --color-text-inactive: #333;
+
+    /* ── Projector-Friendly Opacity Tiers ─────────────────
+       Tweak these for venue lighting. Higher = brighter.
+       Defaults are tuned for projector visibility.
+       Original dim values were: muted=0.30, label=0.40, secondary=0.50, body=0.60
+    */
+    --opacity-muted: 0.45;       /* very dim hints, awaiting input, placeholders */
+    --opacity-label: 0.65;       /* section labels: "> ATTACK PAYLOADS:", "> ACTIVE SYSTEM PROMPT:" */
+    --opacity-secondary: 0.75;   /* status lines, prompt level info, sidebar text */
+    --opacity-body: 0.85;        /* body text, system prompt display, chat messages */
+    --opacity-button: 0.80;      /* button text, payload labels */
+    --opacity-border: 0.35;      /* subtle borders around buttons and panels */
+
+    /* Timing */
+    --transition-fast: 0.2s ease;
+    --transition-medium: 0.3s ease-out;
+    --transition-slow: 0.4s ease-out;
+
+    /* Glow intensities */
+    --glow-sm: 5px;
+    --glow-md: 10px;
+    --glow-lg: 40px;
+
+    /* Toast defaults */
+    --toast-duration: 4s;
+}
+
+/* --- Scanline Overlay ------------------------------------ */
+.scanline-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        var(--color-green-subtle) 2px,
+        var(--color-green-subtle) 4px
+    );
+}
+
+/* --- Glitch Text Effect ---------------------------------- */
+.glitch {
+    position: relative;
+    display: inline-block;
+    animation: glitch-skew 3s infinite linear alternate-reverse;
+}
+
+.glitch::before,
+.glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.glitch::before {
+    color: var(--color-neon-red);
+    animation: glitch-shift-1 2s infinite linear alternate-reverse;
+    clip-path: inset(0 0 80% 0);
+}
+
+.glitch::after {
+    color: var(--color-neon-cyan);
+    animation: glitch-shift-2 2.5s infinite linear alternate-reverse;
+    clip-path: inset(80% 0 0 0);
+}
+
+@keyframes glitch-skew {
+    0%, 95% { transform: skew(0deg); }
+    96% { transform: skew(2deg); }
+    97% { transform: skew(-1deg); }
+    98% { transform: skew(3deg); }
+    99% { transform: skew(-2deg); }
+    100% { transform: skew(0deg); }
+}
+
+@keyframes glitch-shift-1 {
+    0%, 90% { transform: translateX(0); }
+    92% { transform: translateX(-3px); }
+    94% { transform: translateX(3px); }
+    96% { transform: translateX(-2px); }
+    98% { transform: translateX(1px); }
+    100% { transform: translateX(0); }
+}
+
+@keyframes glitch-shift-2 {
+    0%, 88% { transform: translateX(0); }
+    90% { transform: translateX(2px); }
+    93% { transform: translateX(-3px); }
+    95% { transform: translateX(1px); }
+    97% { transform: translateX(-1px); }
+    100% { transform: translateX(0); }
+}
+
+/* --- Neon Glow Effects ----------------------------------- */
+.neon-glow-green {
+    box-shadow:
+        0 0 var(--glow-sm) var(--color-terminal-green),
+        0 0 var(--glow-md) var(--color-terminal-green),
+        0 0 var(--glow-lg) var(--color-green-muted);
+}
+
+.neon-glow-red {
+    box-shadow:
+        0 0 var(--glow-sm) var(--color-neon-red),
+        0 0 var(--glow-md) var(--color-neon-red),
+        0 0 var(--glow-lg) var(--color-red-muted);
+}
+
+.neon-glow-cyan {
+    box-shadow:
+        0 0 var(--glow-sm) var(--color-neon-cyan),
+        0 0 var(--glow-md) var(--color-neon-cyan),
+        0 0 var(--glow-lg) var(--color-cyan-muted);
+}
+
+.neon-glow-amber {
+    box-shadow:
+        0 0 var(--glow-sm) var(--color-terminal-amber),
+        0 0 var(--glow-md) var(--color-terminal-amber),
+        0 0 var(--glow-lg) var(--color-amber-muted);
+}
+
+/* Text neon glow */
+.neon-text-green {
+    text-shadow:
+        0 0 var(--glow-sm) var(--color-terminal-green),
+        0 0 var(--glow-md) var(--color-terminal-green),
+        0 0 var(--glow-lg) var(--color-green-border);
+}
+
+.neon-text-red {
+    text-shadow:
+        0 0 var(--glow-sm) var(--color-neon-red),
+        0 0 var(--glow-md) var(--color-neon-red),
+        0 0 var(--glow-lg) var(--color-red-border);
+}
+
+.neon-text-cyan {
+    text-shadow:
+        0 0 var(--glow-sm) var(--color-neon-cyan),
+        0 0 var(--glow-md) var(--color-neon-cyan),
+        0 0 var(--glow-lg) var(--color-cyan-border);
+}
+
+.neon-text-amber {
+    text-shadow:
+        0 0 var(--glow-sm) var(--color-terminal-amber),
+        0 0 var(--glow-md) var(--color-terminal-amber),
+        0 0 var(--glow-lg) var(--color-amber-border);
+}
+
+/* --- Blinking Cursor ------------------------------------- */
+.blink-cursor {
+    animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Chat input blinking cursor overlay */
+.chat-cursor {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 18px;
+    background-color: var(--color-terminal-amber);
+    animation: blink 1s steps(1) infinite;
+    pointer-events: none;
+}
+
+input:focus + .chat-cursor {
+    display: none;
+}
+
+/* --- ASCII Art Banner Support ---------------------------- */
+.ascii-banner {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    white-space: pre;
+    line-height: 1.1;
+    color: var(--color-terminal-green);
+    text-shadow:
+        0 0 var(--glow-sm) var(--color-terminal-green),
+        0 0 20px var(--color-green-border);
+    font-size: 10px;
+}
+
+@media (min-width: 1024px) {
+    .ascii-banner {
+        font-size: 14px;
+    }
+}
+
+/* --- Message Fade-In ------------------------------------- */
+.message-fade-in {
+    animation: messageFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes messageFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Panel Animations ------------------------------------ */
+.panel-slide-in {
+    animation: panelSlideIn 0.4s ease-out forwards;
+}
+
+@keyframes panelSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* --- Pulse Animation (for active defense indicators) ----- */
+.pulse-green {
+    animation: pulseGreen 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseGreen {
+    0%, 100% {
+        box-shadow: 0 0 5px var(--color-terminal-green), 0 0 10px var(--color-green-border);
+    }
+    50% {
+        box-shadow: 0 0 10px var(--color-terminal-green), 0 0 30px var(--color-green-highlight);
+    }
+}
+
+.pulse-red {
+    animation: pulseRed 1s ease-in-out infinite;
+}
+
+@keyframes pulseRed {
+    0%, 100% {
+        box-shadow: 0 0 5px var(--color-neon-red), 0 0 10px var(--color-red-border);
+    }
+    50% {
+        box-shadow: 0 0 15px var(--color-neon-red), 0 0 40px var(--color-red-highlight);
+    }
+}
+
+/* --- Transmitting Animation ------------------------------ */
+.transmitting {
+    animation: transmit 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes transmit {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+}
+
+/* --- Scrollbar Styling ----------------------------------- */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-green-muted);
+    border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--color-green-hover);
+}
+
+/* --- Utility Classes ------------------------------------- */
+.border-glow-green {
+    border-color: var(--color-green-border);
+    transition: box-shadow var(--transition-fast);
+}
+
+.border-glow-green:hover {
+    box-shadow: 0 0 15px var(--color-green-border);
+}
+
+/* Status indicator dots */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-dot.active {
+    background-color: var(--color-terminal-green);
+    box-shadow: 0 0 6px var(--color-terminal-green);
+}
+
+.status-dot.warning {
+    background-color: var(--color-terminal-amber);
+    box-shadow: 0 0 6px var(--color-terminal-amber);
+}
+
+.status-dot.danger {
+    background-color: var(--color-neon-red);
+    box-shadow: 0 0 6px var(--color-neon-red);
+}
+
+.status-dot.inactive {
+    background-color: var(--color-text-inactive);
+}
+
+/* --- Toast / Notification Component ---------------------- */
+.toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    padding: 0.75rem 1.25rem;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.8rem;
+    max-width: 400px;
+    animation: toastIn var(--transition-medium) forwards,
+               toastOut var(--transition-medium) var(--toast-duration) forwards;
+    border: 1px solid;
+}
+
+.toast-success {
+    color: var(--color-terminal-green);
+    background: var(--color-green-bg);
+    border-color: var(--color-green-border);
+    box-shadow: 0 0 var(--glow-sm) var(--color-green-muted);
+}
+
+.toast-error {
+    color: var(--color-neon-red);
+    background: var(--color-red-bg);
+    border-color: var(--color-red-border);
+    box-shadow: 0 0 var(--glow-sm) var(--color-red-muted);
+}
+
+.toast-warning {
+    color: var(--color-terminal-amber);
+    background: var(--color-amber-bg);
+    border-color: var(--color-amber-border);
+    box-shadow: 0 0 var(--glow-sm) var(--color-amber-muted);
+}
+
+.toast-info {
+    color: var(--color-neon-cyan);
+    background: var(--color-cyan-bg);
+    border-color: var(--color-cyan-border);
+    box-shadow: 0 0 var(--glow-sm) var(--color-cyan-muted);
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toastOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* --- Loading Skeleton / Shimmer -------------------------- */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--color-surface-raised) 25%,
+        var(--color-green-shimmer) 50%,
+        var(--color-surface-raised) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+.skeleton-line {
+    height: 1em;
+    margin-bottom: 0.5em;
+}
+
+.skeleton-line:last-child {
+    width: 60%;
+}
+
+.skeleton-block {
+    height: 4em;
+    margin-bottom: 0.75em;
+}
+
+.skeleton-circle {
+    width: 2em;
+    height: 2em;
+    border-radius: 50%;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* --- Progress Bar Component (multi-step demos) ----------- */
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-green-border);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--color-terminal-green);
+    box-shadow: 0 0 var(--glow-sm) var(--color-terminal-green);
+    border-radius: 2px;
+    transition: width var(--transition-medium);
+}
+
+.progress-bar-fill.animated {
+    background: linear-gradient(
+        90deg,
+        var(--color-terminal-green),
+        var(--color-neon-cyan),
+        var(--color-terminal-green)
+    );
+    background-size: 200% 100%;
+    animation: progressShimmer 2s linear infinite;
+}
+
+@keyframes progressShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Labeled progress with step counter */
+.progress-steps {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+}
+
+.progress-steps .progress-bar {
+    flex: 1;
+}
+
+.progress-steps-label {
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Color variants */
+.progress-bar-fill.fill-red {
+    background: var(--color-neon-red);
+    box-shadow: 0 0 var(--glow-sm) var(--color-neon-red);
+}
+
+.progress-bar-fill.fill-amber {
+    background: var(--color-terminal-amber);
+    box-shadow: 0 0 var(--glow-sm) var(--color-terminal-amber);
+}
+
+.progress-bar-fill.fill-cyan {
+    background: var(--color-neon-cyan);
+    box-shadow: 0 0 var(--glow-sm) var(--color-neon-cyan);
+}
+
+/* --- Projector-Friendly Text Classes ─────────────────────
+   Use these instead of Tailwind opacity classes (e.g. text-green-500/40)
+   so opacity can be tuned from the :root variables above.
+   Naming: .pj-{color}-{tier}  (pj = projector)
+*/
+
+/* Green tiers */
+.pj-green-muted    { color: rgba(0, 255, 0, var(--opacity-muted)); }
+.pj-green-label    { color: rgba(0, 255, 0, var(--opacity-label)); }
+.pj-green-secondary { color: rgba(0, 255, 0, var(--opacity-secondary)); }
+.pj-green-body     { color: rgba(0, 255, 0, var(--opacity-body)); }
+
+/* Red tiers */
+.pj-red-muted      { color: rgba(255, 0, 64, var(--opacity-muted)); }
+.pj-red-label      { color: rgba(255, 0, 64, var(--opacity-label)); }
+.pj-red-secondary  { color: rgba(255, 0, 64, var(--opacity-secondary)); }
+.pj-red-body       { color: rgba(255, 0, 64, var(--opacity-body)); }
+.pj-red-button     { color: rgba(255, 0, 64, var(--opacity-button)); }
+
+/* Cyan tiers */
+.pj-cyan-muted     { color: rgba(0, 255, 240, var(--opacity-muted)); }
+.pj-cyan-label     { color: rgba(0, 255, 240, var(--opacity-label)); }
+.pj-cyan-secondary { color: rgba(0, 255, 240, var(--opacity-secondary)); }
+.pj-cyan-body      { color: rgba(0, 255, 240, var(--opacity-body)); }
+
+/* Amber tiers */
+.pj-amber-muted    { color: rgba(255, 176, 0, var(--opacity-muted)); }
+.pj-amber-label    { color: rgba(255, 176, 0, var(--opacity-label)); }
+.pj-amber-secondary { color: rgba(255, 176, 0, var(--opacity-secondary)); }
+.pj-amber-body     { color: rgba(255, 176, 0, var(--opacity-body)); }
+
+/* Border tiers */
+.pj-border-green   { border-color: rgba(0, 255, 0, var(--opacity-border)); }
+.pj-border-red     { border-color: rgba(255, 0, 64, var(--opacity-border)); }
+.pj-border-cyan    { border-color: rgba(0, 255, 240, var(--opacity-border)); }
+.pj-border-amber   { border-color: rgba(255, 176, 0, var(--opacity-border)); }
+
+/* --- Accessible Focus Rings ------------------------------ */
+:focus-visible {
+    outline: 2px solid var(--color-terminal-green);
+    outline-offset: 2px;
+}
+
+/* --- Reduced Motion Preference --------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .glitch,
+    .glitch::before,
+    .glitch::after {
+        animation: none !important;
+    }
+
+    .blink-cursor,
+    .chat-cursor {
+        animation: none !important;
+        opacity: 1;
+    }
+
+    .message-fade-in {
+        animation: none !important;
+        opacity: 1;
+    }
+
+    .panel-slide-in {
+        animation: none !important;
+        opacity: 1;
+    }
+
+    .pulse-green,
+    .pulse-red {
+        animation: none !important;
+    }
+
+    .transmitting {
+        animation: none !important;
+        opacity: 1;
+    }
+
+    .toast {
+        animation: none !important;
+        opacity: 1;
+    }
+
+    .skeleton {
+        animation: none !important;
+    }
+
+    .progress-bar-fill.animated {
+        animation: none !important;
+    }
+
+    .scanline-overlay {
+        display: none;
+    }
+}
+
+/* --- Screen Reader Only ---------------------------------- */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}

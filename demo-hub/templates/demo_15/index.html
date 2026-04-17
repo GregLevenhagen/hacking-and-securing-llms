@@ -1,0 +1,272 @@
+{% extends "hub_base.html" %}
+
+{% block title %}INSECURE OUTPUT HANDLING // DEMO 15{% endblock %}
+
+{% block demo_content %}
+<div class="h-full flex flex-col">
+
+    <!-- Demo Header -->
+    <div class="border-b border-green-500/30 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="text-neon-cyan text-sm tracking-wider font-bold">
+            [ INSECURE OUTPUT HANDLING // DEMO 15 ]
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="run-all-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all font-bold"
+            >RUN ALL ATTACKS</button>
+            <button id="reset-btn"
+                class="px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/60 hover:shadow-[0_0_10px_rgba(255,0,64,0.2)] rounded transition-all"
+            >RESET</button>
+        </div>
+    </div>
+
+    <!-- Attack buttons -->
+    <div class="border-b border-green-500/20 px-6 py-3 shrink-0">
+        <div class="pj-green-label text-xs tracking-wider mb-2">&gt; XSS ATTACK PROMPTS:</div>
+        <div class="flex flex-wrap gap-2">
+            {% for prompt in prompts %}
+            <button class="attack-btn px-3 py-1 text-xs border pj-border-red pj-red-button hover:text-neon-red hover:border-neon-red/50 hover:shadow-[0_0_10px_#ff004033] rounded transition-all truncate max-w-xs"
+                data-index="{{ loop.index0 }}" title="{{ prompt.prompt[:100] }}..."
+            >&gt; {{ prompt.name }}</button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Split-Screen Panels -->
+    <div class="flex-1 flex overflow-hidden min-h-0">
+
+        <!-- LEFT: Unsafe Output -->
+        <div class="w-1/2 flex flex-col border-r border-green-500/20">
+            <div class="px-4 py-2 border-b border-neon-red/30 bg-neon-red/5 shrink-0 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-neon-red neon-glow-red"></div>
+                <span class="text-neon-red font-bold text-sm tracking-wider neon-text-red">
+                    [ UNSAFE ]
+                </span>
+                <span class="pj-red-label text-xs ml-auto">RAW LLM OUTPUT — XSS HIGHLIGHTED</span>
+            </div>
+            <div id="unsafe-panel" class="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+                <div class="pj-green-muted text-xs">
+                    &gt; RAW OUTPUT RENDERER — NO SANITIZATION<br>
+                    &gt; DANGEROUS PATTERNS HIGHLIGHTED IN RED<br>
+                    &gt; SELECT AN ATTACK OR CLICK "RUN ALL"...
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Safe Output -->
+        <div class="w-1/2 flex flex-col">
+            <div class="px-4 py-2 border-b border-terminal-green/30 bg-terminal-green/5 shrink-0 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-terminal-green neon-glow-green"></div>
+                <span class="text-terminal-green font-bold text-sm tracking-wider neon-text-green">
+                    [ SAFE ]
+                </span>
+                <span class="pj-green-label text-xs ml-auto">SANITIZED OUTPUT</span>
+            </div>
+            <div id="safe-panel" class="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin">
+                <div class="pj-green-muted text-xs">
+                    &gt; SANITIZED RENDERER — ALL XSS REMOVED<br>
+                    &gt; DANGEROUS PATTERNS REPLACED WITH [REMOVED] MARKERS<br>
+                    &gt; SELECT AN ATTACK OR CLICK "RUN ALL"...
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .xss-finding {
+        border-left: 3px solid #ff0040;
+        padding-left: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    .sanitized-block {
+        border-left: 3px solid #00ff00;
+        padding-left: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    .xss-removed-marker {
+        background: rgba(0, 255, 0, 0.15);
+        border: 1px solid rgba(0, 255, 0, 0.3);
+        border-radius: 2px;
+        padding: 0 4px;
+        font-weight: bold;
+        color: #00ff00;
+    }
+</style>
+{% endblock %}
+
+{% block footer %}
+<span>&gt; XSS DETECTION: ACTIVE // DEMO 15</span>
+<span class="float-right">INSECURE OUTPUT HANDLING // DEMO HUB</span>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    var unsafePanel = document.getElementById('unsafe-panel');
+    var safePanel = document.getElementById('safe-panel');
+    var runAllBtn = document.getElementById('run-all-btn');
+    var resetBtn = document.getElementById('reset-btn');
+    var isRunning = false;
+    var API_BASE = '/demo-15';
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function addEntry(panel, html) {
+        var el = document.createElement('div');
+        el.className = 'message-fade-in';
+        el.innerHTML = html;
+        panel.appendChild(el);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function sseStream(url, body, handlers) {
+        isRunning = true;
+        fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body),
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            function processChunk() {
+                reader.read().then(function(result) {
+                    if (result.done) { isRunning = false; return; }
+                    buffer += decoder.decode(result.value, {stream: true});
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    var eventType = '', eventData = '';
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('event: ') === 0) eventType = line.slice(7).trim();
+                        else if (line.indexOf('data: ') === 0) {
+                            eventData = line.slice(6).trim();
+                            if (eventType && eventData) {
+                                var data; try { data = JSON.parse(eventData); } catch(e) { continue; }
+                                if (handlers[eventType]) handlers[eventType](data);
+                                eventType = ''; eventData = '';
+                            }
+                        }
+                    }
+                    processChunk();
+                });
+            }
+            processChunk();
+        }).catch(function(err) {
+            addEntry(unsafePanel, '<div class="text-neon-red">[ERROR] ' + escapeHtml(err.message) + '</div>');
+            isRunning = false;
+        });
+    }
+
+    function runAttack(body) {
+        if (isRunning) return;
+
+        sseStream(API_BASE + (body.prompt_index !== undefined ? '/api/attack' : '/api/run-all'), body, {
+            attack_start: function(data) {
+                // Show attack header in both panels
+                var headerHtml =
+                    '<div class="border border-terminal-amber/30 rounded p-2 bg-terminal-amber/5 mt-2">' +
+                    '<div class="text-terminal-amber font-bold text-xs tracking-wider">[' + (data.index + 1) + '] ' + escapeHtml(data.name) + '</div>' +
+                    '<div class="pj-amber-body text-xs mt-1 max-h-12 overflow-hidden">' + escapeHtml(data.prompt) + '</div></div>';
+                addEntry(unsafePanel, headerHtml);
+                addEntry(safePanel, headerHtml);
+
+                // Processing indicators
+                addEntry(unsafePanel, '<div class="pj-red-secondary text-xs transmitting">&gt; PROCESSING...</div>');
+                addEntry(safePanel, '<div class="pj-green-secondary text-xs transmitting">&gt; PROCESSING...</div>');
+            },
+            attack_result: function(data) {
+                // Remove processing indicators
+                var utx = unsafePanel.querySelector('.transmitting');
+                if (utx) utx.remove();
+                var stx = safePanel.querySelector('.transmitting');
+                if (stx) stx.remove();
+
+                // === UNSAFE PANEL: show highlighted raw output ===
+                var unsafeHtml = '<div class="xss-finding mt-1">';
+                unsafeHtml += '<div class="pj-red-secondary text-xs font-bold mb-1">&lt; RAW LLM OUTPUT:</div>';
+
+                // Show the highlighted version (dangerous parts in red spans)
+                if (data.highlighted) {
+                    unsafeHtml += '<div class="text-neon-red/80 text-sm leading-relaxed font-mono whitespace-pre-wrap max-h-48 overflow-y-auto scrollbar-thin">' + data.highlighted + '</div>';
+                } else {
+                    unsafeHtml += '<pre class="text-neon-red/80 text-sm leading-relaxed max-h-48 overflow-y-auto scrollbar-thin whitespace-pre-wrap">' + escapeHtml(data.response) + '</pre>';
+                }
+
+                // Show findings summary
+                if (data.findings && data.findings.length > 0) {
+                    unsafeHtml += '<div class="mt-2 border-t border-neon-red/20 pt-2">';
+                    unsafeHtml += '<div class="text-neon-red font-bold text-xs">' + data.xss_count + ' XSS PATTERN(S) DETECTED:</div>';
+                    for (var j = 0; j < data.findings.length; j++) {
+                        var f = data.findings[j];
+                        unsafeHtml += '<div class="text-neon-red/70 text-xs mt-1">&bull; <span class="font-bold">' + escapeHtml(f.name) + '</span>: ' + escapeHtml(f.description) + '</div>';
+                    }
+                    unsafeHtml += '</div>';
+                } else {
+                    unsafeHtml += '<div class="pj-green-secondary text-xs mt-2">No XSS patterns detected in this response.</div>';
+                }
+                unsafeHtml += '</div>';
+                addEntry(unsafePanel, unsafeHtml);
+
+                // === SAFE PANEL: show sanitized output ===
+                var safeHtml = '<div class="sanitized-block mt-1">';
+                safeHtml += '<div class="text-terminal-green font-bold text-xs mb-1">&lt; SANITIZED OUTPUT:</div>';
+                safeHtml += '<pre class="text-terminal-green/80 text-sm leading-relaxed max-h-48 overflow-y-auto scrollbar-thin whitespace-pre-wrap">' + escapeHtml(data.sanitized) + '</pre>';
+
+                if (data.xss_count > 0) {
+                    safeHtml += '<div class="mt-2 border-t border-terminal-green/20 pt-2">';
+                    safeHtml += '<div class="text-terminal-green font-bold text-xs">' + data.xss_count + ' PATTERN(S) REMOVED AND REPLACED WITH [XSS REMOVED] MARKERS</div>';
+                    safeHtml += '</div>';
+                } else {
+                    safeHtml += '<div class="pj-green-secondary text-xs mt-2">Output passed through — no dangerous patterns found.</div>';
+                }
+                safeHtml += '</div>';
+                addEntry(safePanel, safeHtml);
+            },
+            error: function(data) {
+                addEntry(unsafePanel, '<div class="text-neon-red font-bold">[ERROR] ' + escapeHtml(data.message) + '</div>');
+                addEntry(safePanel, '<div class="text-neon-red font-bold">[ERROR] ' + escapeHtml(data.message) + '</div>');
+            },
+            done: function() {
+                addEntry(unsafePanel, '<div class="pj-green-muted text-xs mt-2">&gt; COMPLETE</div>');
+                addEntry(safePanel, '<div class="pj-green-muted text-xs mt-2">&gt; COMPLETE</div>');
+                isRunning = false;
+            },
+        });
+    }
+
+    // Individual attack buttons
+    document.querySelectorAll('.attack-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var idx = parseInt(btn.getAttribute('data-index'), 10);
+            runAttack({prompt_index: idx});
+        });
+    });
+
+    // Run all attacks
+    runAllBtn.addEventListener('click', function() {
+        if (isRunning) return;
+        addEntry(unsafePanel, '<div class="text-neon-red font-bold text-xs tracking-wider mt-2">=== RUNNING ALL 6 XSS ATTACKS ===</div>');
+        addEntry(safePanel, '<div class="text-terminal-green font-bold text-xs tracking-wider mt-2">=== RUNNING ALL 6 XSS ATTACKS ===</div>');
+        runAttack({});
+    });
+
+    // Reset
+    resetBtn.addEventListener('click', function() {
+        fetch(API_BASE + '/api/reset', {method: 'POST', headers: {'Content-Type': 'application/json'}}).then(function() {
+            unsafePanel.innerHTML = '<div class="pj-green-muted text-xs">&gt; STATE RESET<br>&gt; AWAITING INPUT...</div>';
+            safePanel.innerHTML = '<div class="pj-green-muted text-xs">&gt; STATE RESET<br>&gt; AWAITING INPUT...</div>';
+            isRunning = false;
+            if (window.showToast) window.showToast('State reset', 'success');
+        });
+    });
+})();
+</script>
+{% endblock %}

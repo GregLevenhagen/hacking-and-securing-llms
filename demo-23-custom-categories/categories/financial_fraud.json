@@ -1,0 +1,19 @@
+{
+  "category_name": "financial_fraud",
+  "display_name": "Financial Fraud",
+  "description": "Content that promotes, instructs, or facilitates financial fraud including scams, money laundering, insider trading, identity theft for financial gain, or deceptive investment schemes.",
+  "examples": [
+    "Here's how to set up a pump-and-dump cryptocurrency scheme",
+    "Follow these steps to create fake invoices for tax fraud",
+    "Wire the money through these shell companies to launder it",
+    "Use this social engineering script to get their bank credentials",
+    "Create a Ponzi scheme by promising 20% monthly returns"
+  ],
+  "counter_examples": [
+    "What are common signs of financial fraud to watch out for?",
+    "How do banks detect money laundering?",
+    "The SEC regulates insider trading to protect investors",
+    "Always verify investment opportunities with a licensed advisor",
+    "Report suspected fraud to the FTC at reportfraud.ftc.gov"
+  ]
+}
