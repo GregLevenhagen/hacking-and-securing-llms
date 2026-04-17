@@ -1,6 +1,6 @@
 # Hacking and Securing LLMs: Live Attacks, Broken Defenses, and Safer AI Systems
 
-[![CI](https://github.com/greglevenhagen/hacking-and-securing-llms-public/actions/workflows/ci.yml/badge.svg)](https://github.com/greglevenhagen/hacking-and-securing-llms-public/actions/workflows/ci.yml)
+[![CI](https://github.com/GregLevenhagen/hacking-and-securing-llms/actions/workflows/ci.yml/badge.svg)](https://github.com/GregLevenhagen/hacking-and-securing-llms/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776ab.svg)](https://www.python.org/)
 [![Ollama](https://img.shields.io/badge/Local%20LLM-Ollama-111111.svg)](https://ollama.ai)
