@@ -4,6 +4,8 @@ Modern LLM applications can chat, reason, retrieve data, call tools, and take au
 
 This repository contains the demos, code, and supporting materials for a conference session and workshop bundle that walks through realistic attacks against LLM systems and the defensive patterns that actually work.
 
+Presentation deck: [hacking-and-securing-llms.pptx](hacking-and-securing-llms.pptx)
+
 ## Demo Hub
 
 The **Demo Hub** is a unified web interface that hosts all 30 demos in a single Flask application. It features sidebar navigation, a hacker/cyberpunk aesthetic with matrix rain and neon styling, and real-time SSE streaming for LLM responses.
